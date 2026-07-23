@@ -2258,13 +2258,16 @@ model ConnectorRegistry {
   id                  String   @id @default(uuid())
   connectorId         String   @unique // e.g. "shodan-infra", "google-dorks"
   name                String
-  category            String   // Internet Search, OSINT, Social Intelligence, News Intelligence, etc.
+  category            String   // Internet Search, Social Intelligence, News Intelligence, OSINT Intelligence, Web Intelligence, Media Intelligence
   description         String
   version             String   @default("1.0.0")
   status              String   @default("Installed") // Installed, Enabled, Disabled, Deprecated, Failed
   health              String   @default("Healthy") // Healthy, Degraded, Down
   capabilities        String   // Comma-separated list or JSON array of strings
   lastRun             DateTime?
+  lastSync            DateTime?
+  apiKeyStatus        String   @default("Not Configured") // Configured, Not Configured, Invalid
+  installed           Boolean  @default(true)
   averageRuntimeMs    Int      @default(0)
   rateLimitsTotal     Int      @default(100)
   rateLimitsUsed      Int      @default(0)

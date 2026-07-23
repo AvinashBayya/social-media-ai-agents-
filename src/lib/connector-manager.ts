@@ -2,13 +2,11 @@
 
 export type ConnectorCategory =
   | "Internet Search"
-  | "OSINT"
   | "Social Intelligence"
   | "News Intelligence"
-  | "Infrastructure Intelligence"
-  | "Document Intelligence"
-  | "Media Intelligence"
-  | "Investigation Connectors";
+  | "OSINT Intelligence"
+  | "Web Intelligence"
+  | "Media Intelligence";
 
 export type ConnectorState =
   | "Installed"
@@ -20,6 +18,8 @@ export type ConnectorState =
   | "Updating"
   | "Failed"
   | "Deprecated";
+
+export type ApiKeyStatusState = "Configured" | "Not Configured" | "Invalid";
 
 export interface ConnectorLog {
   timestamp: string;
@@ -60,12 +60,15 @@ export interface ConnectorMetadata {
   health: "Healthy" | "Degraded" | "Down";
   capabilities: string[];
   lastRun: string | null;
+  lastSync: string | null;
   averageRuntimeMs: number;
   rateLimits: { total: number; used: number; remaining: number };
   errorsCount: number;
   usageCount: number;
   config: ConnectorConfig;
   logs: ConnectorLog[];
+  apiKeyStatus: ApiKeyStatusState;
+  installed: boolean;
 }
 
 // Every connector MUST implement this contract
@@ -159,131 +162,373 @@ export class ConnectorManager {
 
   // Bootstraps default connectors representing Sentinel AI's existing services
   private initializeDefaultRegistry(): void {
-    // 1. Google News RSS Connector
+    // === 1. INTERNET SEARCH ===
     this.register(
       new MockAdapter({
-        id: "google-rss-news",
-        name: "Google News RSS Aggregator",
-        category: "News Intelligence",
-        description: "Aggregates global live RSS feeds for intelligence tracking.",
-        version: "1.2.0",
+        id: "google-search",
+        name: "Google Search",
+        category: "Internet Search",
+        description: "Perform web searches across Google's global search index.",
+        version: "2.1.0",
         status: "Enabled",
         health: "Healthy",
-        capabilities: ["rss-parsing", "feed-correlative-search"],
-        averageRuntimeMs: 180,
-        rateLimits: { total: 500, used: 42, remaining: 458 },
+        capabilities: ["web-search", "serp-extraction"],
+        averageRuntimeMs: 190,
+        rateLimits: { total: 1000, used: 240, remaining: 760 },
+        apiKeyStatus: "Configured",
+        installed: true,
       }),
     );
 
-    // 2. Google Dorks Connector
     this.register(
       new MockAdapter({
         id: "google-dorks",
-        name: "Google Dorks OSINT Connector",
+        name: "Google Dorks",
         category: "Internet Search",
-        description:
-          "Generates and queries advanced operators (site:, filetype:, intitle:) to detect exposed files.",
-        version: "1.0.0",
+        description: "Generate and execute advanced Google search operators (site:, filetype:).",
+        version: "1.1.2",
         status: "Enabled",
         health: "Healthy",
-        capabilities: ["operator-compilation", "filetype-matching", "caching"],
+        capabilities: ["operator-compiler", "filetype-matching"],
         averageRuntimeMs: 240,
         rateLimits: { total: 100, used: 25, remaining: 75 },
+        apiKeyStatus: "Configured",
+        installed: true,
       }),
     );
 
-    // 3. Shodan Infrastructure Scanner
     this.register(
       new MockAdapter({
-        id: "shodan-infra",
-        name: "Shodan Scanner",
-        category: "Infrastructure Intelligence",
-        description:
-          "Queries Shodan database nodes for exposed ports, SSL states, and CVE associations.",
+        id: "bing-search",
+        name: "Bing Search",
+        category: "Internet Search",
+        description: "Query Microsoft Bing search indexes for entity correlation.",
+        version: "1.8.0",
+        status: "Disabled",
+        health: "Healthy",
+        capabilities: ["web-search", "related-questions"],
+        averageRuntimeMs: 210,
+        rateLimits: { total: 500, used: 0, remaining: 500 },
+        apiKeyStatus: "Not Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "brave-search",
+        name: "Brave Search",
+        category: "Internet Search",
+        description: "Query privacy-centric web search results via Brave API.",
+        version: "1.0.0",
+        status: "Not Installed",
+        health: "Healthy",
+        capabilities: ["private-search", "independent-index"],
+        averageRuntimeMs: 175,
+        rateLimits: { total: 1000, used: 0, remaining: 1000 },
+        apiKeyStatus: "Not Configured",
+        installed: false,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "duckduckgo-search",
+        name: "DuckDuckGo",
+        category: "Internet Search",
+        description: "Execute privacy-focused search queries with no user tracking.",
+        version: "1.2.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["private-search", "zero-click-info"],
+        averageRuntimeMs: 155,
+        rateLimits: { total: 5000, used: 120, remaining: 4880 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    // === 2. SOCIAL INTELLIGENCE ===
+    this.register(
+      new MockAdapter({
+        id: "instagram-social",
+        name: "Instagram",
+        category: "Social Intelligence",
+        description: "Monitor public Instagram profile posts, tags, and hashtags.",
+        version: "1.4.0",
+        status: "Not Installed",
+        health: "Healthy",
+        capabilities: ["profile-scraping", "media-tracking"],
+        averageRuntimeMs: 350,
+        rateLimits: { total: 1000, used: 0, remaining: 1000 },
+        apiKeyStatus: "Not Configured",
+        installed: false,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "facebook-social",
+        name: "Facebook",
+        category: "Social Intelligence",
+        description: "Monitor public page posts and comments for targeted brand tracking.",
+        version: "2.0.1",
+        status: "Disabled",
+        health: "Healthy",
+        capabilities: ["page-scraping", "comment-crawling"],
+        averageRuntimeMs: 380,
+        rateLimits: { total: 500, used: 0, remaining: 500 },
+        apiKeyStatus: "Not Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "x-twitter-social",
+        name: "X (Twitter)",
+        category: "Social Intelligence",
+        description: "Ingest and analyze real-time posts, threads and sentiment from X.",
+        version: "3.2.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["stream-mentions", "profile-sentiment"],
+        averageRuntimeMs: 290,
+        rateLimits: { total: 10000, used: 4120, remaining: 5880 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "linkedin-social",
+        name: "LinkedIn",
+        category: "Social Intelligence",
+        description: "Extract corporate structures, employee listings, and profiles.",
+        version: "2.1.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["company-directory", "employee-resolving"],
+        averageRuntimeMs: 310,
+        rateLimits: { total: 1000, used: 84, remaining: 916 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "reddit-social",
+        name: "Reddit",
+        category: "Social Intelligence",
+        description: "Track subreddit postings and comments for brand protection.",
+        version: "1.5.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["subreddit-crawling", "keyword-alerts"],
+        averageRuntimeMs: 220,
+        rateLimits: { total: 2000, used: 412, remaining: 1588 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "youtube-social",
+        name: "YouTube",
+        category: "Social Intelligence",
+        description: "Search videofiles metadata, channel descriptions, and transcriptions.",
+        version: "2.0.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["video-transcribing", "metadata-parsing"],
+        averageRuntimeMs: 280,
+        rateLimits: { total: 1000, used: 120, remaining: 880 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "threads-social",
+        name: "Threads",
+        category: "Social Intelligence",
+        description: "Monitor public text threads and user updates on Meta Threads.",
+        version: "1.0.1",
+        status: "Not Installed",
+        health: "Healthy",
+        capabilities: ["feed-monitoring"],
+        averageRuntimeMs: 270,
+        rateLimits: { total: 500, used: 0, remaining: 500 },
+        apiKeyStatus: "Not Configured",
+        installed: false,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "telegram-social",
+        name: "Telegram",
+        category: "Social Intelligence",
+        description: "Monitor public channel broadcasts and alerts for threat intelligence.",
+        version: "1.8.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["channel-crawling", "binary-extraction"],
+        averageRuntimeMs: 140,
+        rateLimits: { total: 5000, used: 840, remaining: 4160 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    // === 3. NEWS INTELLIGENCE ===
+    this.register(
+      new MockAdapter({
+        id: "google-news",
+        name: "Google News",
+        category: "News Intelligence",
+        description: "Ingest articles from Google News wires for corporate indexing.",
+        version: "2.0.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["feed-syncing", "geotag-parsing"],
+        averageRuntimeMs: 180,
+        rateLimits: { total: 10000, used: 412, remaining: 9588 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "rss",
+        name: "RSS",
+        category: "News Intelligence",
+        description: "Synchronize RSS/XML wires for custom target news tracking.",
+        version: "1.2.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["xml-parsing", "custom-feeds-polling"],
+        averageRuntimeMs: 110,
+        rateLimits: { total: 20000, used: 8420, remaining: 11580 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "news-apis",
+        name: "News APIs",
+        category: "News Intelligence",
+        description: "Query enterprise global news aggregation portals (e.g. NewsAPI).",
+        version: "1.1.0",
+        status: "Disabled",
+        health: "Healthy",
+        capabilities: ["source-filters", "relevance-sorting"],
+        averageRuntimeMs: 160,
+        rateLimits: { total: 1000, used: 0, remaining: 1000 },
+        apiKeyStatus: "Not Configured",
+        installed: true,
+      }),
+    );
+
+    // === 4. OSINT INTELLIGENCE ===
+    this.register(
+      new MockAdapter({
+        id: "whois",
+        name: "WHOIS",
+        category: "OSINT Intelligence",
+        description: "Query domain registration dates, servers, and registrar credentials.",
+        version: "1.3.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["whois-parsing", "rdap-handshake"],
+        averageRuntimeMs: 120,
+        rateLimits: { total: 1000, used: 42, remaining: 958 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "dns",
+        name: "DNS",
+        category: "OSINT Intelligence",
+        description: "Resolve domain nameservers, MX routing, and AXFR zone details.",
+        version: "1.4.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["dns-resolving", "txt-extraction"],
+        averageRuntimeMs: 95,
+        rateLimits: { total: 5000, used: 142, remaining: 4858 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "certificates",
+        name: "Certificates",
+        category: "OSINT Intelligence",
+        description: "Query certificate transparency logs for SSL/TLS records.",
+        version: "1.0.5",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["ct-log-lookup", "issuer-parsing"],
+        averageRuntimeMs: 145,
+        rateLimits: { total: 2000, used: 88, remaining: 1912 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "github-intel",
+        name: "GitHub",
+        category: "OSINT Intelligence",
+        description: "Scan code, commits, and commits metadata for credentials leak.",
+        version: "2.1.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["code-scraping", "commit-auditing"],
+        averageRuntimeMs: 250,
+        rateLimits: { total: 5000, used: 210, remaining: 4790 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "shodan-scanner",
+        name: "Shodan",
+        category: "OSINT Intelligence",
+        description: "Query Shodan API for open ports, SSL states, and CVE vulnerability indexes.",
         version: "2.1.4",
         status: "Enabled",
         health: "Healthy",
         capabilities: ["port-scanning", "ssl-certificate-analysis", "cve-lookup"],
         averageRuntimeMs: 280,
         rateLimits: { total: 10000, used: 142, remaining: 9858 },
+        apiKeyStatus: "Configured",
+        installed: true,
       }),
     );
 
-    // 4. WHOIS & RDAP Domain Registry
-    this.register(
-      new MockAdapter({
-        id: "whois-rdap",
-        name: "WHOIS & RDAP Registry lookup",
-        category: "OSINT",
-        description:
-          "Fetches domain registrar, expiration timeline, status flags, and registry contact entities.",
-        version: "1.1.0",
-        status: "Enabled",
-        health: "Healthy",
-        capabilities: ["rdap-parsing", "whois-contact-scraping"],
-        averageRuntimeMs: 120,
-        rateLimits: { total: 1000, used: 82, remaining: 918 },
-      }),
-    );
-
-    // 5. Wikidata Corporate Analyzer
-    this.register(
-      new MockAdapter({
-        id: "wikidata-corp",
-        name: "Wikidata Corporate Indexer",
-        category: "OSINT",
-        description:
-          "Extracts corporate registries, parent orgs, official site URLs, and social profile links.",
-        version: "1.0.2",
-        status: "Enabled",
-        health: "Healthy",
-        capabilities: ["claims-correlation", "social-handle-resolution"],
-        averageRuntimeMs: 150,
-        rateLimits: { total: 2000, used: 64, remaining: 1936 },
-      }),
-    );
-
-    // 6. Social Mentions Analyzer
-    this.register(
-      new MockAdapter({
-        id: "social-mentions",
-        name: "Social Profiles & Mentions Ingester",
-        category: "Social Intelligence",
-        description:
-          "Monitors and scans X/Twitter and LinkedIn profiles matching target companies.",
-        version: "1.4.1",
-        status: "Enabled",
-        health: "Healthy",
-        capabilities: ["profile-monitoring", "sentiment-correlation"],
-        averageRuntimeMs: 310,
-        rateLimits: { total: 500, used: 12, remaining: 488 },
-      }),
-    );
-
-    // 7. Live Stream Feeds
-    this.register(
-      new MockAdapter({
-        id: "live-streams",
-        name: "Live Intelligence streams",
-        category: "Media Intelligence",
-        description: "Aggregates real-time news updates and raw Telegram alerts.",
-        version: "1.5.0",
-        status: "Enabled",
-        health: "Healthy",
-        capabilities: ["stream-pooling", "live-sentinel-alerts"],
-        averageRuntimeMs: 95,
-        rateLimits: { total: 20000, used: 450, remaining: 19550 },
-      }),
-    );
-
-    // 8. SpiderFoot Modules OSINT Connector
     this.register(
       new MockAdapter({
         id: "spiderfoot-modules",
-        name: "SpiderFoot Modules",
-        category: "OSINT",
-        description:
-          "Orchestrates open-source intelligence collection via pluggable SpiderFoot modules.",
+        name: "SpiderFoot",
+        category: "OSINT Intelligence",
+        description: "Orchestrate 10 sub-module crawlers for modular intelligence collection.",
         version: "3.5.0",
         status: "Enabled",
         health: "Healthy",
@@ -297,29 +542,197 @@ export class ConnectorManager {
         ],
         averageRuntimeMs: 380,
         rateLimits: { total: 1000, used: 15, remaining: 985 },
+        apiKeyStatus: "Configured",
+        installed: true,
       }),
     );
 
-    // 9. Maltego Graph Exchange Connector
     this.register(
       new MockAdapter({
-        id: "maltego-exchange",
-        name: "Maltego Graph Integration",
-        category: "Investigation Connectors",
-        description:
-          "Enables import/export of graph topologies, entities and evidence relationships with Maltego.",
-        version: "2.0.1",
+        id: "business-registry",
+        name: "Business Registry",
+        category: "OSINT Intelligence",
+        description: "Query international corporate databases (e.g. OpenCorporates).",
+        version: "1.6.0",
+        status: "Disabled",
+        health: "Healthy",
+        capabilities: ["company-resolving", "officer-lookup"],
+        averageRuntimeMs: 190,
+        rateLimits: { total: 1000, used: 0, remaining: 1000 },
+        apiKeyStatus: "Not Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "court-records",
+        name: "Court Records",
+        category: "OSINT Intelligence",
+        description: "Search legal registries, court logs and active filings matching entities.",
+        version: "1.0.0",
+        status: "Not Installed",
+        health: "Healthy",
+        capabilities: ["filing-lookup", "litigant-matching"],
+        averageRuntimeMs: 450,
+        rateLimits: { total: 200, used: 0, remaining: 200 },
+        apiKeyStatus: "Not Configured",
+        installed: false,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "archive",
+        name: "Archive",
+        category: "OSINT Intelligence",
+        description: "Fetch web history snaps from the Internet Archive Wayback Machine.",
+        version: "1.2.1",
         status: "Enabled",
         health: "Healthy",
-        capabilities: [
-          "graph-exchange",
-          "csv-export",
-          "graphml-parsing",
-          "neo4j-binding",
-          "relationship-data-mapping",
-        ],
+        capabilities: ["snapshot-retrieval", "history-diffing"],
+        averageRuntimeMs: 290,
+        rateLimits: { total: 5000, used: 840, remaining: 4160 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    // === 5. WEB INTELLIGENCE ===
+    this.register(
+      new MockAdapter({
+        id: "playwright",
+        name: "Playwright",
+        category: "Web Intelligence",
+        description: "Automate browser interactions to scrape javascript-heavy targets.",
+        version: "1.15.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["headless-crawling", "screenshot-capture"],
+        averageRuntimeMs: 620,
+        rateLimits: { total: 1000, used: 310, remaining: 690 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "scrapy",
+        name: "Scrapy",
+        category: "Web Intelligence",
+        description: "Run Python-based spider bots to scrape massive web structures.",
+        version: "2.5.0",
+        status: "Disabled",
+        health: "Healthy",
+        capabilities: ["distributed-scraping", "spider-spawning"],
+        averageRuntimeMs: 410,
+        rateLimits: { total: 500, used: 0, remaining: 500 },
+        apiKeyStatus: "Not Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "firecrawl",
+        name: "Firecrawl",
+        category: "Web Intelligence",
+        description: "Convert javascript-rendered websites into clean, readable markdown.",
+        version: "1.0.2",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["markdown-parsing", "links-extraction"],
+        averageRuntimeMs: 310,
+        rateLimits: { total: 2000, used: 410, remaining: 1590 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "beautifulsoup",
+        name: "BeautifulSoup",
+        category: "Web Intelligence",
+        description: "Parse raw HTML response payloads and extract tag hierarchies.",
+        version: "4.9.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["dom-parsing", "regex-extract"],
+        averageRuntimeMs: 90,
+        rateLimits: { total: 10000, used: 120, remaining: 9880 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    // === 6. MEDIA INTELLIGENCE ===
+    this.register(
+      new MockAdapter({
+        id: "images",
+        name: "Images",
+        category: "Media Intelligence",
+        description: "Extract OCR texts, colors, EXIF camera logs from target images.",
+        version: "1.2.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["exif-extraction", "ocr-text-matching"],
+        averageRuntimeMs: 250,
+        rateLimits: { total: 1000, used: 142, remaining: 858 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "videos",
+        name: "Videos",
+        category: "Media Intelligence",
+        description: "Process video frames and auto-transcribe target files.",
+        version: "1.3.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["audio-transcription", "frame-analysis"],
+        averageRuntimeMs: 580,
+        rateLimits: { total: 500, used: 42, remaining: 458 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "pdf",
+        name: "PDF",
+        category: "Media Intelligence",
+        description: "Extract texts, URLs, and metadata tags from PDF target dossiers.",
+        version: "1.1.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: ["pdf-layout-parsing", "embedded-links-scraping"],
         averageRuntimeMs: 140,
-        rateLimits: { total: 500, used: 8, remaining: 492 },
+        rateLimits: { total: 2000, used: 840, remaining: 1160 },
+        apiKeyStatus: "Configured",
+        installed: true,
+      }),
+    );
+
+    this.register(
+      new MockAdapter({
+        id: "documents",
+        name: "Documents",
+        category: "Media Intelligence",
+        description: "Parse structured text documents (DOCX, XLSX, reports).",
+        version: "1.0.0",
+        status: "Disabled",
+        health: "Healthy",
+        capabilities: ["docx-extraction", "xlsx-cells-auditing"],
+        averageRuntimeMs: 110,
+        rateLimits: { total: 1000, used: 0, remaining: 1000 },
+        apiKeyStatus: "Not Configured",
+        installed: true,
       }),
     );
   }
@@ -333,13 +746,16 @@ class MockAdapter implements Connector {
     this.metadata = {
       id: opts.id || "mock-conn",
       name: opts.name || "Mock Connector",
-      category: opts.category || "OSINT",
+      category: opts.category || "OSINT Intelligence",
       description: opts.description || "Simulated connector plugin.",
       version: opts.version || "1.0.0",
       status: opts.status || "Installed",
       health: opts.health || "Healthy",
       capabilities: opts.capabilities || [],
-      lastRun: new Date().toISOString(),
+      lastRun: opts.lastRun || new Date().toISOString(),
+      lastSync: opts.lastSync || new Date().toISOString(),
+      apiKeyStatus: opts.apiKeyStatus || "Configured",
+      installed: opts.installed !== undefined ? opts.installed : true,
       averageRuntimeMs: opts.averageRuntimeMs || 150,
       rateLimits: opts.rateLimits || { total: 100, used: 0, remaining: 100 },
       errorsCount: 0,

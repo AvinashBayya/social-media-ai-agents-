@@ -75,6 +75,13 @@ import {
   ArrowUpRight,
   Bot,
   Key,
+  Globe,
+  Users,
+  Code,
+  Film,
+  Trash2,
+  Settings,
+  Shield,
 } from "lucide-react";
 import {
   Area,
@@ -786,6 +793,9 @@ function ResearchCenter() {
   const [marketplaceSearch, setMarketplaceSearch] = useState("");
   const [marketplaceCategory, setMarketplaceCategory] = useState<string>("All");
   const [marketplaceStatus, setMarketplaceStatus] = useState<string>("All");
+  const [marketplaceInstallationFilter, setMarketplaceInstallationFilter] = useState<
+    "All" | "Installed" | "Available"
+  >("All");
   const [marketplaceSort, setMarketplaceSort] = useState<string>("name");
 
   // Selected connector for Configuration Details & Lifecycle logs inspection
@@ -818,6 +828,36 @@ function ResearchCenter() {
         timestamp: new Date().toISOString(),
         level: "SUCCESS",
         message: `Manual diagnostics self-test ping success. Latency: ${nextPing}ms`,
+      });
+      setConnectors([...manager.list()]);
+    }
+  };
+
+  const handleInstallConnector = (id: string) => {
+    const manager = ConnectorManager.getInstance();
+    const conn = manager.get(id);
+    if (conn) {
+      conn.metadata.installed = true;
+      conn.metadata.status = "Disabled";
+      conn.metadata.logs.push({
+        timestamp: new Date().toISOString(),
+        level: "SUCCESS",
+        message: `Extension pack '${conn.metadata.name}' v${conn.metadata.version} successfully installed. Ready for configuration.`,
+      });
+      setConnectors([...manager.list()]);
+    }
+  };
+
+  const handleUninstallConnector = (id: string) => {
+    const manager = ConnectorManager.getInstance();
+    const conn = manager.get(id);
+    if (conn) {
+      conn.metadata.installed = false;
+      conn.metadata.status = "Not Installed";
+      conn.metadata.logs.push({
+        timestamp: new Date().toISOString(),
+        level: "WARNING",
+        message: `Extension pack '${conn.metadata.name}' has been uninstalled from local registry.`,
       });
       setConnectors([...manager.list()]);
     }
@@ -4060,372 +4100,514 @@ function ResearchCenter() {
 
             {/* CONNECTOR MARKETPLACE TAB */}
             <TabsContent value="marketplace" className="space-y-4">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
-                <div className="text-left">
-                  <h3 className="text-sm font-semibold flex items-center gap-2">
-                    <Radio className="size-4 text-primary" /> Enterprise Connector Marketplace
-                  </h3>
-                  <p className="text-xs text-muted-foreground">
-                    Discover, install, monitor, and configure Sentinel AI intelligence plugins
-                  </p>
+              <div className="flex flex-col md:flex-row gap-6">
+                {/* SIDEBAR FILTERS */}
+                <div className="w-full md:w-64 shrink-0 space-y-5 text-left">
+                  {/* Extension Lifecycle Filter */}
+                  <Card className="bg-card/40 border-primary/5">
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Registry Filter
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-0 space-y-2">
+                      {[
+                        { id: "All", label: "All Extensions" },
+                        { id: "Installed", label: "Installed Extensions" },
+                        { id: "Available", label: "Available Only" },
+                      ].map((item) => (
+                        <label
+                          key={item.id}
+                          className="flex items-center gap-2 text-xs font-medium cursor-pointer text-foreground/80 hover:text-foreground"
+                        >
+                          <input
+                            type="radio"
+                            name="installationFilter"
+                            checked={marketplaceInstallationFilter === item.id}
+                            onChange={() => setMarketplaceInstallationFilter(item.id as any)}
+                            className="text-primary focus:ring-primary size-3.5 border-muted bg-card"
+                          />
+                          <span>{item.label}</span>
+                        </label>
+                      ))}
+                    </CardContent>
+                  </Card>
+
+                  {/* Categories List */}
+                  <Card className="bg-card/40 border-primary/5">
+                    <CardHeader className="p-4 pb-2">
+                      <CardTitle className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Categories
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-2 pt-0 space-y-1">
+                      <Button
+                        variant={marketplaceCategory === "All" ? "secondary" : "ghost"}
+                        onClick={() => setMarketplaceCategory("All")}
+                        className="w-full justify-between h-8.5 text-xs text-left px-2 font-medium"
+                      >
+                        <span className="flex items-center gap-2">
+                          <Radio className="size-3.5" /> All Categories
+                        </span>
+                        <Badge
+                          variant="outline"
+                          className="border-0 bg-muted/60 text-[10px] px-1.5 py-0"
+                        >
+                          {connectors.length}
+                        </Badge>
+                      </Button>
+                      {[
+                        { id: "Internet Search", label: "Internet Search", icon: Globe },
+                        { id: "Social Intelligence", label: "Social Intelligence", icon: Users },
+                        { id: "News Intelligence", label: "News Intelligence", icon: Newspaper },
+                        { id: "OSINT Intelligence", label: "OSINT Intelligence", icon: Shield },
+                        { id: "Web Intelligence", label: "Web Intelligence", icon: Code },
+                        { id: "Media Intelligence", label: "Media Intelligence", icon: Film },
+                      ].map((cat) => {
+                        const count = connectors.filter(
+                          (c) => c.metadata.category === cat.id,
+                        ).length;
+                        const CatIcon = cat.icon;
+                        return (
+                          <Button
+                            key={cat.id}
+                            variant={marketplaceCategory === cat.id ? "secondary" : "ghost"}
+                            onClick={() => setMarketplaceCategory(cat.id)}
+                            className="w-full justify-between h-8.5 text-xs text-left px-2 font-medium"
+                          >
+                            <span className="flex items-center gap-2">
+                              <CatIcon className="size-3.5 text-primary/70" /> {cat.label}
+                            </span>
+                            <Badge
+                              variant="outline"
+                              className="border-0 bg-muted/60 text-[10px] px-1.5 py-0"
+                            >
+                              {count}
+                            </Badge>
+                          </Button>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Input
-                    placeholder="Search connectors..."
-                    value={marketplaceSearch}
-                    onChange={(e) => setMarketplaceSearch(e.target.value)}
-                    className="h-8.5 text-xs w-[180px] bg-card"
-                  />
-                  <select
-                    value={marketplaceCategory}
-                    onChange={(e) => setMarketplaceCategory(e.target.value)}
-                    className="bg-card text-foreground border rounded px-2.5 py-1 outline-none text-xs h-8.5 font-medium"
-                  >
-                    <option value="All">All Categories</option>
-                    <option value="Internet Search">Internet Search</option>
-                    <option value="OSINT">OSINT</option>
-                    <option value="Social Intelligence">Social Intelligence</option>
-                    <option value="News Intelligence">News Intelligence</option>
-                    <option value="Infrastructure Intelligence">Infrastructure Intelligence</option>
-                    <option value="Document Intelligence">Document Intelligence</option>
-                    <option value="Media Intelligence">Media Intelligence</option>
-                    <option value="Investigation Connectors">Investigation Connectors</option>
-                  </select>
-                  <select
-                    value={marketplaceStatus}
-                    onChange={(e) => setMarketplaceStatus(e.target.value)}
-                    className="bg-card text-foreground border rounded px-2.5 py-1 outline-none text-xs h-8.5 font-medium"
-                  >
-                    <option value="All">All Statuses</option>
-                    <option value="Enabled">Enabled</option>
-                    <option value="Disabled">Disabled</option>
-                    <option value="Installed">Installed</option>
-                    <option value="Failed">Failed</option>
-                    <option value="Deprecated">Deprecated</option>
-                  </select>
-                  <select
-                    value={marketplaceSort}
-                    onChange={(e) => setMarketplaceSort(e.target.value)}
-                    className="bg-card text-foreground border rounded px-2.5 py-1 outline-none text-xs h-8.5 font-medium"
-                  >
-                    <option value="name">Sort by Name</option>
-                    <option value="version">Sort by Version</option>
-                    <option value="lastRun">Sort by Last Run</option>
-                  </select>
+
+                {/* PLUGINS LIST & FILTER BAR */}
+                <div className="flex-1 space-y-4">
+                  {/* Top bar controls */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-card/40 border border-primary/5 p-3 rounded-lg text-left">
+                    <div>
+                      <h4 className="text-sm font-semibold flex items-center gap-2">
+                        <Sparkles className="size-4 text-primary" /> Dynamic Registry Marketplace
+                      </h4>
+                      <p className="text-[11px] text-muted-foreground">
+                        Integrate, activate, and orchestrate connectors natively without altering
+                        core services
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 size-3.5 text-muted-foreground" />
+                        <Input
+                          placeholder="Search extensions..."
+                          value={marketplaceSearch}
+                          onChange={(e) => setMarketplaceSearch(e.target.value)}
+                          className="h-8.5 pl-8 text-xs w-[180px] bg-card border-muted"
+                        />
+                      </div>
+                      <select
+                        value={marketplaceSort}
+                        onChange={(e) => setMarketplaceSort(e.target.value)}
+                        className="bg-card text-foreground border rounded px-2 py-1 outline-none text-xs h-8.5 font-medium border-muted"
+                      >
+                        <option value="name">Sort by Name</option>
+                        <option value="version">Sort by Version</option>
+                        <option value="lastRun">Sort by Last Sync</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Grid layout */}
+                  {(() => {
+                    const filtered = connectors
+                      .filter((conn) => {
+                        const matchesSearch =
+                          conn.metadata.name
+                            .toLowerCase()
+                            .includes(marketplaceSearch.toLowerCase()) ||
+                          conn.metadata.description
+                            .toLowerCase()
+                            .includes(marketplaceSearch.toLowerCase());
+                        const matchesCategory =
+                          marketplaceCategory === "All" ||
+                          conn.metadata.category === marketplaceCategory;
+
+                        let matchesInstallation = true;
+                        if (marketplaceInstallationFilter === "Installed") {
+                          matchesInstallation = conn.metadata.installed === true;
+                        } else if (marketplaceInstallationFilter === "Available") {
+                          matchesInstallation = conn.metadata.installed === false;
+                        }
+
+                        return matchesSearch && matchesCategory && matchesInstallation;
+                      })
+                      .sort((a, b) => {
+                        if (marketplaceSort === "name") {
+                          return a.metadata.name.localeCompare(b.metadata.name);
+                        } else if (marketplaceSort === "version") {
+                          return b.metadata.version.localeCompare(a.metadata.version);
+                        } else {
+                          const aTime = a.metadata.lastSync
+                            ? new Date(a.metadata.lastSync).getTime()
+                            : 0;
+                          const bTime = b.metadata.lastSync
+                            ? new Date(b.metadata.lastSync).getTime()
+                            : 0;
+                          return bTime - aTime;
+                        }
+                      });
+
+                    if (filtered.length === 0) {
+                      return (
+                        <div className="p-12 text-center text-muted-foreground text-xs border rounded bg-card/40 leading-normal">
+                          No intelligence extensions match the current filters.
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="grid gap-4 md:grid-cols-2">
+                        {filtered.map((conn) => {
+                          const isConfigOpen = selectedConfigConnectorId === conn.metadata.id;
+                          const isLogsOpen = selectedLogsConnectorId === conn.metadata.id;
+
+                          // Icon selector based on category
+                          let PluginIcon = Globe;
+                          if (conn.metadata.category === "Social Intelligence") PluginIcon = Users;
+                          else if (conn.metadata.category === "News Intelligence")
+                            PluginIcon = Newspaper;
+                          else if (conn.metadata.category === "OSINT Intelligence")
+                            PluginIcon = Shield;
+                          else if (conn.metadata.category === "Web Intelligence") PluginIcon = Code;
+                          else if (conn.metadata.category === "Media Intelligence")
+                            PluginIcon = Film;
+
+                          return (
+                            <Card
+                              key={conn.metadata.id}
+                              className="bg-card/50 border-primary/5 hover:border-primary/20 transition-all flex flex-col justify-between overflow-hidden"
+                            >
+                              {/* Header info */}
+                              <CardHeader className="p-4 pb-2 border-b border-white/5 bg-slate-950/20">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex gap-2.5 items-start text-left">
+                                    <div className="p-1.5 rounded-lg bg-primary/10 text-primary mt-0.5">
+                                      <PluginIcon className="size-4.5" />
+                                    </div>
+                                    <div>
+                                      <CardTitle className="text-xs font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1.5">
+                                        {conn.metadata.name}
+                                        <span className="text-[10px] text-muted-foreground font-mono font-normal">
+                                          v{conn.metadata.version}
+                                        </span>
+                                      </CardTitle>
+                                      <span className="text-[9px] uppercase tracking-wider font-bold text-muted-foreground font-sans">
+                                        {conn.metadata.category}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1">
+                                    {conn.metadata.installed ? (
+                                      <Badge
+                                        variant="outline"
+                                        className={`text-[9px] border-0 px-2 py-0.5 font-bold ${
+                                          conn.metadata.status === "Enabled"
+                                            ? "bg-green-500/10 text-green-500"
+                                            : conn.metadata.status === "Disabled"
+                                              ? "bg-amber-500/10 text-amber-500"
+                                              : "bg-red-500/10 text-red-500"
+                                        }`}
+                                      >
+                                        {conn.metadata.status}
+                                      </Badge>
+                                    ) : (
+                                      <Badge
+                                        variant="secondary"
+                                        className="text-[9px] px-2 py-0.5 text-muted-foreground"
+                                      >
+                                        Available
+                                      </Badge>
+                                    )}
+                                  </div>
+                                </div>
+                              </CardHeader>
+
+                              {/* Body content */}
+                              <CardContent className="p-4 pt-3 space-y-3.5 flex-1 flex flex-col justify-between text-left">
+                                <div className="space-y-3">
+                                  <p className="text-xs text-muted-foreground leading-normal min-h-8">
+                                    {conn.metadata.description}
+                                  </p>
+
+                                  {/* Capabilities list */}
+                                  <div className="flex flex-wrap gap-1">
+                                    {conn.metadata.capabilities.map((cap) => (
+                                      <Badge
+                                        key={cap}
+                                        variant="secondary"
+                                        className="text-[9px] font-mono border-0 font-normal scale-95 origin-left px-1.5 py-0"
+                                      >
+                                        {cap}
+                                      </Badge>
+                                    ))}
+                                  </div>
+
+                                  {/* Stats / Status strip */}
+                                  <div className="grid grid-cols-2 gap-2 border-t pt-2.5 text-[10px] text-muted-foreground">
+                                    <div>
+                                      <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
+                                        Health check
+                                      </span>
+                                      <span
+                                        className={`font-semibold flex items-center gap-1 ${
+                                          conn.metadata.health === "Healthy"
+                                            ? "text-green-500"
+                                            : conn.metadata.health === "Degraded"
+                                              ? "text-amber-500"
+                                              : "text-red-500"
+                                        }`}
+                                      >
+                                        <span
+                                          className={`size-1.5 rounded-full ${
+                                            conn.metadata.health === "Healthy"
+                                              ? "bg-green-500"
+                                              : conn.metadata.health === "Degraded"
+                                                ? "bg-amber-500"
+                                                : "bg-red-500"
+                                          }`}
+                                        />
+                                        {conn.metadata.health}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
+                                        Credential Status
+                                      </span>
+                                      <span
+                                        className={`font-semibold ${
+                                          conn.metadata.apiKeyStatus === "Configured"
+                                            ? "text-green-500"
+                                            : conn.metadata.apiKeyStatus === "Invalid"
+                                              ? "text-white/40"
+                                              : "text-white/40"
+                                        }`}
+                                      >
+                                        {conn.metadata.apiKeyStatus}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
+                                        Usage Metric
+                                      </span>
+                                      <span className="text-foreground font-semibold">
+                                        {conn.metadata.usageCount} requests
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
+                                        Rate Limits
+                                      </span>
+                                      <span className="text-foreground font-semibold">
+                                        {conn.metadata.rateLimits.remaining} /{" "}
+                                        {conn.metadata.rateLimits.total} hr
+                                      </span>
+                                    </div>
+                                    <div className="col-span-2">
+                                      <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
+                                        Last Sync
+                                      </span>
+                                      <span className="text-foreground font-semibold">
+                                        {conn.metadata.lastSync
+                                          ? new Date(conn.metadata.lastSync).toLocaleString()
+                                          : "Never"}
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Drawer Configurations */}
+                                {isConfigOpen && conn.metadata.installed && (
+                                  <div className="border-t pt-3 mt-2 space-y-2.5 text-xs bg-muted/20 p-2.5 rounded border border-primary/5">
+                                    <span className="font-bold text-[9px] text-muted-foreground uppercase flex items-center gap-1">
+                                      <Key className="size-3 text-primary" /> Credentials Config
+                                    </span>
+                                    <div className="space-y-1">
+                                      <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                                        API Secret token
+                                      </label>
+                                      <Input
+                                        type="password"
+                                        placeholder="Enter key token"
+                                        value={conn.metadata.config.apiKey}
+                                        onChange={(e) =>
+                                          handleUpdateConfigValue(conn.metadata.id, {
+                                            apiKey: e.target.value,
+                                          })
+                                        }
+                                        className="h-7 text-xs font-mono"
+                                      />
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <div className="space-y-1">
+                                        <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                                          Timeout (ms)
+                                        </label>
+                                        <Input
+                                          type="number"
+                                          value={conn.metadata.config.timeout}
+                                          onChange={(e) =>
+                                            handleUpdateConfigValue(conn.metadata.id, {
+                                              timeout: parseInt(e.target.value, 10) || 10000,
+                                            })
+                                          }
+                                          className="h-7 text-xs"
+                                        />
+                                      </div>
+                                      <div className="space-y-1">
+                                        <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                                          Retries
+                                        </label>
+                                        <Input
+                                          type="number"
+                                          value={conn.metadata.config.retryCount}
+                                          onChange={(e) =>
+                                            handleUpdateConfigValue(conn.metadata.id, {
+                                              retryCount: parseInt(e.target.value, 10) || 3,
+                                            })
+                                          }
+                                          className="h-7 text-xs"
+                                        />
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Logs Console */}
+                                {isLogsOpen && conn.metadata.installed && (
+                                  <div className="border-t pt-3 mt-2 space-y-1 bg-black/90 p-2 rounded text-[8.5px] font-mono text-green-400 max-h-36 overflow-y-auto leading-relaxed text-left">
+                                    <span className="font-bold text-[8px] text-white/50 uppercase block border-b border-white/5 pb-1">
+                                      Extension Log Terminal
+                                    </span>
+                                    {conn.metadata.logs.map((log, idx) => (
+                                      <div
+                                        key={idx}
+                                        className="flex gap-1.5 items-start py-0.5 border-b border-white/5"
+                                      >
+                                        <span className="text-white/30">
+                                          [{log.timestamp.substring(11, 19)}]
+                                        </span>
+                                        <span
+                                          className={`font-bold ${
+                                            log.level === "SUCCESS"
+                                              ? "text-green-500"
+                                              : log.level === "WARNING"
+                                                ? "text-amber-500"
+                                                : log.level === "ERROR"
+                                                  ? "text-red-500"
+                                                  : "text-blue-400"
+                                          }`}
+                                        >
+                                          {log.level}
+                                        </span>
+                                        <span className="text-white/80">{log.message}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+
+                                {/* Card Controls */}
+                                <div className="flex gap-1.5 pt-3 border-t mt-3 flex-wrap">
+                                  {conn.metadata.installed ? (
+                                    <>
+                                      <Button
+                                        size="sm"
+                                        variant={
+                                          conn.metadata.status === "Enabled"
+                                            ? "destructive"
+                                            : "default"
+                                        }
+                                        onClick={() =>
+                                          handleToggleConnector(
+                                            conn.metadata.id,
+                                            conn.metadata.status,
+                                          )
+                                        }
+                                        className="h-7 text-[10px] px-2 flex-1 font-semibold"
+                                      >
+                                        {conn.metadata.status === "Enabled" ? "Disable" : "Enable"}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          setSelectedConfigConnectorId(
+                                            isConfigOpen ? null : conn.metadata.id,
+                                          )
+                                        }
+                                        className={`h-7 text-[10px] px-2 flex-1 font-semibold ${isConfigOpen ? "bg-accent" : ""}`}
+                                      >
+                                        <Settings className="size-3 mr-1" /> Config
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          handleConnectorHealthSelfTest(conn.metadata.id)
+                                        }
+                                        className="h-7 text-[10px] px-2 flex-1 font-semibold"
+                                      >
+                                        <Activity className="size-3 mr-1" /> Ping
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                          setSelectedLogsConnectorId(
+                                            isLogsOpen ? null : conn.metadata.id,
+                                          )
+                                        }
+                                        className={`h-7 text-[10px] px-2 flex-1 font-semibold ${isLogsOpen ? "bg-accent" : ""}`}
+                                      >
+                                        <FileText className="size-3 mr-1" /> Logs
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => handleUninstallConnector(conn.metadata.id)}
+                                        className="h-7 text-[10px] px-2 text-red-500 hover:text-red-400 hover:bg-red-500/10 font-semibold"
+                                      >
+                                        <Trash2 className="size-3" />
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleInstallConnector(conn.metadata.id)}
+                                      className="h-7 text-[10px] w-full bg-green-600 hover:bg-green-500 text-white font-semibold flex items-center justify-center gap-1"
+                                    >
+                                      <Download className="size-3.5" /> Install Extension
+                                    </Button>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
-
-              {/* CONNECTORS GRID */}
-              {(() => {
-                // Apply search, category, status filters & sorting
-                const filteredConnectors = connectors
-                  .filter((conn) => {
-                    const matchSearch =
-                      conn.metadata.name.toLowerCase().includes(marketplaceSearch.toLowerCase()) ||
-                      conn.metadata.description
-                        .toLowerCase()
-                        .includes(marketplaceSearch.toLowerCase());
-                    const matchCategory =
-                      marketplaceCategory === "All" ||
-                      conn.metadata.category === marketplaceCategory;
-                    const matchStatus =
-                      marketplaceStatus === "All" || conn.metadata.status === marketplaceStatus;
-                    return matchSearch && matchCategory && matchStatus;
-                  })
-                  .sort((a, b) => {
-                    if (marketplaceSort === "name") {
-                      return a.metadata.name.localeCompare(b.metadata.name);
-                    } else if (marketplaceSort === "version") {
-                      return b.metadata.version.localeCompare(a.metadata.version);
-                    } else {
-                      const aTime = a.metadata.lastRun ? new Date(a.metadata.lastRun).getTime() : 0;
-                      const bTime = b.metadata.lastRun ? new Date(b.metadata.lastRun).getTime() : 0;
-                      return bTime - aTime;
-                    }
-                  });
-
-                if (filteredConnectors.length === 0) {
-                  return (
-                    <div className="p-12 text-center text-muted-foreground text-xs border rounded bg-card/40 leading-normal">
-                      No intelligence connectors match the current search filters.
-                    </div>
-                  );
-                }
-
-                return (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredConnectors.map((conn) => {
-                      const isConfigOpen = selectedConfigConnectorId === conn.metadata.id;
-                      const isLogsOpen = selectedLogsConnectorId === conn.metadata.id;
-
-                      return (
-                        <Card
-                          key={conn.metadata.id}
-                          className="bg-card/50 border-primary/5 hover:border-primary/20 transition-all flex flex-col justify-between"
-                        >
-                          <CardHeader className="pb-2">
-                            <div className="flex items-start justify-between">
-                              <div className="text-left">
-                                <CardTitle className="text-sm font-semibold flex items-center gap-1">
-                                  {conn.metadata.name}
-                                </CardTitle>
-                                <span className="text-[10px] text-muted-foreground font-mono">
-                                  v{conn.metadata.version} · {conn.metadata.category}
-                                </span>
-                              </div>
-                              <Badge
-                                variant="outline"
-                                className={`text-[9px] border-0 px-2 py-0.5 font-bold ${
-                                  conn.metadata.status === "Enabled"
-                                    ? "bg-green-500/10 text-green-500"
-                                    : conn.metadata.status === "Disabled"
-                                      ? "bg-amber-500/10 text-amber-500"
-                                      : conn.metadata.status === "Failed"
-                                        ? "bg-red-500/10 text-red-500"
-                                        : "bg-muted text-muted-foreground"
-                                }`}
-                              >
-                                {conn.metadata.status}
-                              </Badge>
-                            </div>
-                          </CardHeader>
-
-                          <CardContent className="p-4 pt-0 space-y-4 flex-1 flex flex-col justify-between text-left">
-                            <div className="space-y-3">
-                              <p className="text-xs text-muted-foreground leading-normal">
-                                {conn.metadata.description}
-                              </p>
-
-                              {/* Capabilities List */}
-                              <div className="flex flex-wrap gap-1">
-                                {conn.metadata.capabilities.map((cap) => (
-                                  <Badge
-                                    key={cap}
-                                    variant="secondary"
-                                    className="text-[9px] font-mono border-0 font-normal scale-95 origin-left"
-                                  >
-                                    {cap}
-                                  </Badge>
-                                ))}
-                              </div>
-
-                              {/* Metrics details */}
-                              <div className="grid grid-cols-2 gap-2 border-t pt-2 text-[10px] text-muted-foreground">
-                                <div>
-                                  <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
-                                    Health check
-                                  </span>
-                                  <span
-                                    className={`font-semibold flex items-center gap-1 ${
-                                      conn.metadata.health === "Healthy"
-                                        ? "text-green-500"
-                                        : conn.metadata.health === "Degraded"
-                                          ? "text-amber-500"
-                                          : "text-red-500"
-                                    }`}
-                                  >
-                                    <span
-                                      className={`size-1.5 rounded-full ${
-                                        conn.metadata.health === "Healthy"
-                                          ? "bg-green-500"
-                                          : conn.metadata.health === "Degraded"
-                                            ? "bg-amber-500"
-                                            : "bg-red-500"
-                                      }`}
-                                    />{" "}
-                                    {conn.metadata.health}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
-                                    Rate Limits
-                                  </span>
-                                  <span className="text-foreground font-semibold">
-                                    {conn.metadata.rateLimits.remaining} /{" "}
-                                    {conn.metadata.rateLimits.total} hr
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
-                                    Avg Runtime
-                                  </span>
-                                  <span className="text-foreground font-semibold">
-                                    {conn.metadata.averageRuntimeMs}ms
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
-                                    Last Run
-                                  </span>
-                                  <span className="text-foreground font-semibold">
-                                    {conn.metadata.lastRun
-                                      ? new Date(conn.metadata.lastRun).toLocaleTimeString()
-                                      : "Never"}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* INLINE CONFIGURATION DRAWER */}
-                            {isConfigOpen && (
-                              <div className="border-t pt-3.5 mt-3 space-y-2.5 text-xs bg-muted/20 p-2.5 rounded border">
-                                <span className="font-bold text-[9px] text-muted-foreground uppercase flex items-center gap-1">
-                                  <Key className="size-3 text-primary" /> Configuration Panel
-                                </span>
-
-                                <div className="space-y-1">
-                                  <label className="text-[9px] font-bold text-muted-foreground uppercase">
-                                    API Token key
-                                  </label>
-                                  <Input
-                                    type="password"
-                                    placeholder="Secret Token"
-                                    value={conn.metadata.config.apiKey}
-                                    onChange={(e) =>
-                                      handleUpdateConfigValue(conn.metadata.id, {
-                                        apiKey: e.target.value,
-                                      })
-                                    }
-                                    className="h-7 text-xs font-mono"
-                                  />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-2">
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-muted-foreground uppercase">
-                                      Timeout (ms)
-                                    </label>
-                                    <Input
-                                      type="number"
-                                      value={conn.metadata.config.timeout}
-                                      onChange={(e) =>
-                                        handleUpdateConfigValue(conn.metadata.id, {
-                                          timeout: parseInt(e.target.value, 10) || 10000,
-                                        })
-                                      }
-                                      className="h-7 text-xs"
-                                    />
-                                  </div>
-                                  <div className="space-y-1">
-                                    <label className="text-[9px] font-bold text-muted-foreground uppercase">
-                                      Retry Policy
-                                    </label>
-                                    <Input
-                                      type="number"
-                                      value={conn.metadata.config.retryCount}
-                                      onChange={(e) =>
-                                        handleUpdateConfigValue(conn.metadata.id, {
-                                          retryCount: parseInt(e.target.value, 10) || 3,
-                                        })
-                                      }
-                                      className="h-7 text-xs"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div className="space-y-1">
-                                  <label className="text-[9px] font-bold text-muted-foreground uppercase">
-                                    Rate Limit per hour
-                                  </label>
-                                  <Input
-                                    type="number"
-                                    value={conn.metadata.config.rateLimitMax}
-                                    onChange={(e) =>
-                                      handleUpdateConfigValue(conn.metadata.id, {
-                                        rateLimitMax: parseInt(e.target.value, 10) || 100,
-                                      })
-                                    }
-                                    className="h-7 text-xs"
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            {/* INLINE TELEMETRY LOGS */}
-                            {isLogsOpen && (
-                              <div className="border-t pt-3.5 mt-3 space-y-1 bg-black/90 p-2 rounded text-[8.5px] font-mono text-green-400 max-h-36 overflow-y-auto leading-relaxed text-left">
-                                <span className="font-bold text-[8px] text-white/50 uppercase block border-b border-white/5 pb-1">
-                                  Connector Diagnostic Logs
-                                </span>
-                                {conn.metadata.logs.map((log, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex gap-1.5 items-start py-0.5 border-b border-white/5"
-                                  >
-                                    <span className="text-white/30">
-                                      [{log.timestamp.substring(11, 19)}]
-                                    </span>
-                                    <span
-                                      className={
-                                        log.level === "SUCCESS"
-                                          ? "text-green-500"
-                                          : log.level === "WARNING"
-                                            ? "text-amber-500"
-                                            : log.level === "ERROR"
-                                              ? "text-red-500"
-                                              : "text-blue-400"
-                                      }
-                                    >
-                                      {log.level}
-                                    </span>
-                                    <span className="text-white/80">{log.message}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-
-                            {/* CARD CONTROLS */}
-                            <div className="flex gap-1.5 pt-3 border-t mt-3 flex-wrap">
-                              <Button
-                                size="sm"
-                                variant={
-                                  conn.metadata.status === "Enabled" ? "destructive" : "default"
-                                }
-                                onClick={() =>
-                                  handleToggleConnector(conn.metadata.id, conn.metadata.status)
-                                }
-                                className="h-7 text-[10px] px-2 flex-1 font-semibold"
-                              >
-                                {conn.metadata.status === "Enabled" ? "Disable" : "Enable"}
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  setSelectedConfigConnectorId(
-                                    isConfigOpen ? null : conn.metadata.id,
-                                  )
-                                }
-                                className={`h-7 text-[10px] px-2 flex-1 font-semibold ${isConfigOpen ? "bg-accent" : ""}`}
-                              >
-                                Configure
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleConnectorHealthSelfTest(conn.metadata.id)}
-                                className="h-7 text-[10px] px-2 flex-1 font-semibold"
-                              >
-                                Ping
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() =>
-                                  setSelectedLogsConnectorId(isLogsOpen ? null : conn.metadata.id)
-                                }
-                                className={`h-7 text-[10px] px-2 flex-1 font-semibold ${isLogsOpen ? "bg-accent" : ""}`}
-                              >
-                                Logs
-                              </Button>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
             </TabsContent>
           </Tabs>
         </div>
