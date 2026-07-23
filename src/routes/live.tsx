@@ -7,7 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { createServerFn } from "@tanstack/react-start";
 import {
-  Search, Filter, Languages, Bookmark, Expand, MapPin, ExternalLink, RefreshCw
+  Search,
+  Filter,
+  Languages,
+  Bookmark,
+  Expand,
+  MapPin,
+  ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 
 function isOfflineError(err: any): boolean {
@@ -55,13 +62,38 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
           handle = "@" + source.toLowerCase().replace(/[^a-z0-9]/g, "") + "_feed";
         } else if (idx % 3 === 2) {
           platform = "Telegram";
-          handle = "channel_" + (1000 + (idx * 23) % 9000);
+          handle = "channel_" + (1000 + ((idx * 23) % 9000));
         }
 
         let sentiment: "positive" | "negative" | "neutral" = "neutral";
-        const posWords = ["success", "achieve", "land", "keynote", "progress", "growth", "approved", "positive", "launch", "space", "orbit"];
-        const negWords = ["fail", "crash", "lost", "delay", "breach", "leak", "unverified", "investigate", "alert", "crashed", "dispute", "restrict"];
-        
+        const posWords = [
+          "success",
+          "achieve",
+          "land",
+          "keynote",
+          "progress",
+          "growth",
+          "approved",
+          "positive",
+          "launch",
+          "space",
+          "orbit",
+        ];
+        const negWords = [
+          "fail",
+          "crash",
+          "lost",
+          "delay",
+          "breach",
+          "leak",
+          "unverified",
+          "investigate",
+          "alert",
+          "crashed",
+          "dispute",
+          "restrict",
+        ];
+
         let posCount = 0;
         let negCount = 0;
         for (const w of posWords) {
@@ -74,11 +106,25 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
         else if (negCount > posCount) sentiment = "negative";
 
         let threat: "low" | "medium" | "high" | "critical" = "low";
-        if (textLower.includes("crash") || textLower.includes("breach") || textLower.includes("critical") || textLower.includes("catastrophe")) {
+        if (
+          textLower.includes("crash") ||
+          textLower.includes("breach") ||
+          textLower.includes("critical") ||
+          textLower.includes("catastrophe")
+        ) {
           threat = "critical";
-        } else if (textLower.includes("leak") || textLower.includes("unverified") || textLower.includes("investigate") || textLower.includes("alert")) {
+        } else if (
+          textLower.includes("leak") ||
+          textLower.includes("unverified") ||
+          textLower.includes("investigate") ||
+          textLower.includes("alert")
+        ) {
           threat = "high";
-        } else if (textLower.includes("delay") || textLower.includes("dispute") || textLower.includes("restrict")) {
+        } else if (
+          textLower.includes("delay") ||
+          textLower.includes("dispute") ||
+          textLower.includes("restrict")
+        ) {
           threat = "medium";
         }
 
@@ -87,13 +133,23 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
           credibility = idx % 2 === 0 ? "medium" : "unverified";
         }
 
-        const locations = ["New Delhi, IN", "Damascus, SY", "London, UK", "Cupertino, US", "Washington, US", "Bengaluru, IN", "Houston, US", "Moscow, RU", "Tokyo, JP"];
+        const locations = [
+          "New Delhi, IN",
+          "Damascus, SY",
+          "London, UK",
+          "Cupertino, US",
+          "Washington, US",
+          "Bengaluru, IN",
+          "Houston, US",
+          "Moscow, RU",
+          "Tokyo, JP",
+        ];
         const loc = locations[idx % locations.length];
 
         const tags = [
           "#" + q.replace(/[^a-zA-Z0-9]/g, ""),
           platform === "Telegram" ? "OSINT" : "intel",
-          sentiment === "positive" ? "growth" : "alert"
+          sentiment === "positive" ? "growth" : "alert",
         ];
 
         return {
@@ -108,7 +164,7 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
           threat,
           credibility,
           url: item.link,
-          hasImage: idx % 4 === 0
+          hasImage: idx % 4 === 0,
         };
       });
 
@@ -130,7 +186,7 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
             threat: "medium",
             credibility: "verified",
             url: "https://reuters.com",
-            hasImage: false
+            hasImage: false,
           },
           {
             author: "Telemetry Feed",
@@ -144,8 +200,8 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
             threat: "low",
             credibility: "medium",
             url: "https://telegram.org",
-            hasImage: false
-          }
+            hasImage: false,
+          },
         ];
         return { streams };
       }
@@ -158,7 +214,15 @@ export const Route = createFileRoute("/live")({
   component: Page,
 });
 
-const examples = ["Tesla", "OpenAI", "India Election", "ISRO", "Narendra Modi", "OPEC", "Vector-17"];
+const examples = [
+  "Tesla",
+  "OpenAI",
+  "India Election",
+  "ISRO",
+  "Narendra Modi",
+  "OPEC",
+  "Vector-17",
+];
 const quickFilters = ["Social", "News", "Images", "Videos", "OSINT", "Forums", "Documents"];
 
 function formatRelativeTime(dateStr: string): string {
@@ -215,7 +279,7 @@ function Page() {
       setVisibleStreams((prev) => {
         const nextItem = buffer[bufferIndex];
         setBufferIndex((prevIdx) => prevIdx + 1);
-        
+
         // Prepend and cap at 8
         const updated = [nextItem, ...prev];
         return updated.slice(0, 8);
@@ -242,13 +306,26 @@ function Page() {
       case "Images":
         return item.hasImage;
       case "Videos":
-        return item.text.toLowerCase().includes("video") || item.text.toLowerCase().includes("footage") || item.text.toLowerCase().includes("clip");
+        return (
+          item.text.toLowerCase().includes("video") ||
+          item.text.toLowerCase().includes("footage") ||
+          item.text.toLowerCase().includes("clip")
+        );
       case "OSINT":
         return item.tags.includes("OSINT") || item.platform === "Telegram";
       case "Forums":
-        return item.platform === "Telegram" || item.handle.includes("group") || item.handle.includes("channel");
+        return (
+          item.platform === "Telegram" ||
+          item.handle.includes("group") ||
+          item.handle.includes("channel")
+        );
       case "Documents":
-        return item.text.toLowerCase().includes("report") || item.text.toLowerCase().includes("pdf") || item.text.toLowerCase().includes("document") || item.text.toLowerCase().includes("brief");
+        return (
+          item.text.toLowerCase().includes("report") ||
+          item.text.toLowerCase().includes("pdf") ||
+          item.text.toLowerCase().includes("document") ||
+          item.text.toLowerCase().includes("brief")
+        );
       default:
         return true;
     }
@@ -259,7 +336,12 @@ function Page() {
       <PageHeader
         title="Live Monitoring"
         description="Global, real-time intelligence stream — filter by platform, language, geography, or credibility."
-        badge={<Badge variant="outline" className="gap-1.5 border-primary/30 bg-primary/5 text-primary"><StatusDot />Streaming</Badge>}
+        badge={
+          <Badge variant="outline" className="gap-1.5 border-primary/30 bg-primary/5 text-primary">
+            <StatusDot />
+            Streaming
+          </Badge>
+        }
       />
 
       <Card className="mb-4">
@@ -307,9 +389,13 @@ function Page() {
               </Badge>
             ))}
             <span className="mx-1 h-4 w-px bg-border" />
-            {["Language: EN", "Country: All", "Date: 24h", "Source: All", "Status: Any"].map((c) => (
-              <Badge key={c} variant="outline" className="cursor-pointer font-normal">{c}</Badge>
-            ))}
+            {["Language: EN", "Country: All", "Date: 24h", "Source: All", "Status: Any"].map(
+              (c) => (
+                <Badge key={c} variant="outline" className="cursor-pointer font-normal">
+                  {c}
+                </Badge>
+              ),
+            )}
           </div>
         </CardContent>
       </Card>
@@ -331,7 +417,10 @@ function Page() {
           {filteredStreams.map((r, i) => {
             const timeAgo = formatRelativeTime(r.pubDate);
             return (
-              <Card key={`${r.author}-${i}`} className="overflow-hidden bg-card/75 border border-primary/10 hover:border-primary/25 transition-all">
+              <Card
+                key={`${r.author}-${i}`}
+                className="overflow-hidden bg-card/75 border border-primary/10 hover:border-primary/25 transition-all"
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
@@ -343,8 +432,11 @@ function Page() {
                         <span className="truncate text-xs text-muted-foreground">{r.handle}</span>
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{r.platform}</Badge>
-                        <MapPin className="size-3" />{r.loc}
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">
+                          {r.platform}
+                        </Badge>
+                        <MapPin className="size-3" />
+                        {r.loc}
                         <span>·</span>
                         <span>{timeAgo} ago</span>
                       </div>
@@ -366,7 +458,12 @@ function Page() {
 
                   <div className="mt-3 flex flex-wrap items-center gap-1.5">
                     {r.tags.map((t: string) => (
-                      <span key={t} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{t}</span>
+                      <span
+                        key={t}
+                        className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
+                      >
+                        {t}
+                      </span>
                     ))}
                   </div>
 
@@ -382,9 +479,18 @@ function Page() {
                   </div>
 
                   <div className="mt-3 flex items-center gap-1">
-                    <Button size="sm" variant="ghost" className="h-8 gap-1.5"><Languages className="size-3.5" />Translate</Button>
-                    <Button size="sm" variant="ghost" className="h-8 gap-1.5"><Expand className="size-3.5" />Expand</Button>
-                    <Button size="sm" variant="ghost" className="h-8 gap-1.5"><Bookmark className="size-3.5" />Bookmark</Button>
+                    <Button size="sm" variant="ghost" className="h-8 gap-1.5">
+                      <Languages className="size-3.5" />
+                      Translate
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 gap-1.5">
+                      <Expand className="size-3.5" />
+                      Expand
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-8 gap-1.5">
+                      <Bookmark className="size-3.5" />
+                      Bookmark
+                    </Button>
                     <Button asChild size="sm" variant="ghost" className="ml-auto h-8 gap-1.5">
                       <a href={r.url} target="_blank" rel="noopener noreferrer">
                         Open <ExternalLink className="size-3.5" />

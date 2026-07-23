@@ -1,22 +1,61 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Radio, Search, Users, Bookmark, Share2, Newspaper, Globe2,
-  Image as ImageIcon, Video, UserSearch, Network, GitBranch, Clock, LineChart,
-  TrendingUp, User, FileBarChart, Bell, ShieldAlert, Map, Database, Bot, Cpu,
-  ListChecks, Download, Settings as SettingsIcon, Command as CommandIcon,
-  Sparkles, ChevronDown, CircleUser,
+  LayoutDashboard,
+  Radio,
+  Search,
+  Users,
+  Bookmark,
+  Share2,
+  Newspaper,
+  Globe2,
+  Image as ImageIcon,
+  Video,
+  UserSearch,
+  Network,
+  GitBranch,
+  Clock,
+  LineChart,
+  TrendingUp,
+  User,
+  FileBarChart,
+  Bell,
+  ShieldAlert,
+  Map,
+  Database,
+  Bot,
+  Cpu,
+  ListChecks,
+  Download,
+  Settings as SettingsIcon,
+  Command as CommandIcon,
+  Sparkles,
+  ChevronDown,
+  CircleUser,
 } from "lucide-react";
 import {
-  Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
-  SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider,
-  SidebarTrigger, SidebarInset,
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  SidebarTrigger,
+  SidebarInset,
 } from "@/components/ui/sidebar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { ReactNode } from "react";
 
@@ -198,8 +237,16 @@ export function AppShell({ children }: { children: ReactNode }) {
 }
 
 export function PageHeader({
-  title, description, actions, badge,
-}: { title: string; description?: string; actions?: ReactNode; badge?: ReactNode }) {
+  title,
+  description,
+  actions,
+  badge,
+}: {
+  title: string;
+  description?: string;
+  actions?: ReactNode;
+  badge?: ReactNode;
+}) {
   return (
     <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
       <div>
@@ -216,7 +263,11 @@ export function PageHeader({
   );
 }
 
-export function StatusDot({ tone = "success" }: { tone?: "success" | "warning" | "danger" | "info" | "muted" }) {
+export function StatusDot({
+  tone = "success",
+}: {
+  tone?: "success" | "warning" | "danger" | "info" | "muted";
+}) {
   const map: Record<string, string> = {
     success: "bg-[oklch(0.68_0.17_145)]",
     warning: "bg-[oklch(0.78_0.16_85)]",
@@ -233,23 +284,68 @@ export function StatusDot({ tone = "success" }: { tone?: "success" | "warning" |
 }
 
 export function toneBadge(
-  tone: "positive" | "negative" | "neutral" | "critical" | "high" | "medium" | "low" | "verified" | "unverified",
-): { variant: "default" | "secondary" | "destructive" | "outline"; className: string; label: string } {
+  tone:
+    | "positive"
+    | "negative"
+    | "neutral"
+    | "critical"
+    | "high"
+    | "medium"
+    | "low"
+    | "verified"
+    | "unverified",
+): {
+  variant: "default" | "secondary" | "destructive" | "outline";
+  className: string;
+  label: string;
+} {
   const map = {
-    positive: { className: "bg-[oklch(0.68_0.17_145)]/12 text-[oklch(0.4_0.17_145)] border-[oklch(0.68_0.17_145)]/25", label: "Positive" },
-    negative: { className: "bg-destructive/10 text-destructive border-destructive/25", label: "Negative" },
+    positive: {
+      className:
+        "bg-[oklch(0.68_0.17_145)]/12 text-[oklch(0.4_0.17_145)] border-[oklch(0.68_0.17_145)]/25",
+      label: "Positive",
+    },
+    negative: {
+      className: "bg-destructive/10 text-destructive border-destructive/25",
+      label: "Negative",
+    },
     neutral: { className: "bg-muted text-muted-foreground border-border", label: "Neutral" },
-    critical: { className: "bg-destructive/12 text-destructive border-destructive/30", label: "Critical" },
-    high: { className: "bg-[oklch(0.78_0.16_50)]/15 text-[oklch(0.5_0.18_50)] border-[oklch(0.78_0.16_50)]/30", label: "High" },
-    medium: { className: "bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.5_0.15_75)] border-[oklch(0.78_0.16_85)]/35", label: "Medium" },
-    low: { className: "bg-[oklch(0.72_0.15_210)]/12 text-[oklch(0.45_0.15_240)] border-[oklch(0.72_0.15_210)]/30", label: "Low" },
-    verified: { className: "bg-[oklch(0.68_0.17_145)]/12 text-[oklch(0.4_0.17_145)] border-[oklch(0.68_0.17_145)]/25", label: "Verified" },
+    critical: {
+      className: "bg-destructive/12 text-destructive border-destructive/30",
+      label: "Critical",
+    },
+    high: {
+      className:
+        "bg-[oklch(0.78_0.16_50)]/15 text-[oklch(0.5_0.18_50)] border-[oklch(0.78_0.16_50)]/30",
+      label: "High",
+    },
+    medium: {
+      className:
+        "bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.5_0.15_75)] border-[oklch(0.78_0.16_85)]/35",
+      label: "Medium",
+    },
+    low: {
+      className:
+        "bg-[oklch(0.72_0.15_210)]/12 text-[oklch(0.45_0.15_240)] border-[oklch(0.72_0.15_210)]/30",
+      label: "Low",
+    },
+    verified: {
+      className:
+        "bg-[oklch(0.68_0.17_145)]/12 text-[oklch(0.4_0.17_145)] border-[oklch(0.68_0.17_145)]/25",
+      label: "Verified",
+    },
     unverified: { className: "bg-muted text-muted-foreground border-border", label: "Unverified" },
   } as const;
   return { variant: "outline", ...map[tone] };
 }
 
-export function Tone({ tone, children }: { tone: Parameters<typeof toneBadge>[0]; children?: ReactNode }) {
+export function Tone({
+  tone,
+  children,
+}: {
+  tone: Parameters<typeof toneBadge>[0];
+  children?: ReactNode;
+}) {
   const t = toneBadge(tone);
   return (
     <Badge variant="outline" className={`font-medium ${t.className}`}>

@@ -78,10 +78,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Sentinel AI — OSINT & Sentiment Intelligence Platform" },
-      { name: "description", content: "Enterprise-grade AI-powered OSINT, social, and sentiment intelligence for security, defense, and brand teams." },
+      {
+        name: "description",
+        content:
+          "Enterprise-grade AI-powered OSINT, social, and sentiment intelligence for security, defense, and brand teams.",
+      },
       { name: "author", content: "Sentinel AI" },
       { property: "og:title", content: "Sentinel AI — OSINT & Sentiment Intelligence Platform" },
-      { property: "og:description", content: "Enterprise-grade AI-powered OSINT, social, and sentiment intelligence." },
+      {
+        property: "og:description",
+        content: "Enterprise-grade AI-powered OSINT, social, and sentiment intelligence.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:site", content: "@Lovable" },

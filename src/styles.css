@@ -92,11 +92,11 @@
   --border: oklch(0.92 0.01 245);
   --input: oklch(0.92 0.01 245);
   --ring: oklch(0.6 0.19 255);
-  --chart-1: oklch(0.6 0.19 255);     /* blue */
-  --chart-2: oklch(0.7 0.16 210);     /* cyan */
-  --chart-3: oklch(0.7 0.17 145);     /* green */
-  --chart-4: oklch(0.78 0.16 85);     /* amber */
-  --chart-5: oklch(0.62 0.23 27);     /* red */
+  --chart-1: oklch(0.6 0.19 255); /* blue */
+  --chart-2: oklch(0.7 0.16 210); /* cyan */
+  --chart-3: oklch(0.7 0.17 145); /* green */
+  --chart-4: oklch(0.78 0.16 85); /* amber */
+  --chart-5: oklch(0.62 0.23 27); /* red */
   --success: oklch(0.68 0.17 145);
   --success-foreground: oklch(0.99 0 0);
   --warning: oklch(0.78 0.16 85);

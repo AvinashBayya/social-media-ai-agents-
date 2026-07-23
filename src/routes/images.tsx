@@ -28,7 +28,22 @@ const gallery = Array.from({ length: 12 }).map((_, i) => ({
     "Leaked document photograph",
     "Satellite composite of area",
   ][i],
-  tone: (["negative", "neutral", "positive", "negative", "neutral", "negative", "neutral", "negative", "neutral", "positive", "negative", "neutral"] as const)[i],
+  tone: (
+    [
+      "negative",
+      "neutral",
+      "positive",
+      "negative",
+      "neutral",
+      "negative",
+      "neutral",
+      "negative",
+      "neutral",
+      "positive",
+      "negative",
+      "neutral",
+    ] as const
+  )[i],
   faces: (i % 3) + 0,
 }));
 
@@ -44,25 +59,42 @@ function Page() {
       <div className="grid gap-4 lg:grid-cols-[1fr_360px]">
         <div>
           <div className="mb-3 flex items-center gap-1.5">
-            {["All", "Faces", "Logos", "Documents", "Weapons", "Vehicles", "Landmarks"].map((f, i) => (
-              <Badge key={f} variant={i === 0 ? "default" : "outline"} className="cursor-pointer font-normal">{f}</Badge>
-            ))}
+            {["All", "Faces", "Logos", "Documents", "Weapons", "Vehicles", "Landmarks"].map(
+              (f, i) => (
+                <Badge
+                  key={f}
+                  variant={i === 0 ? "default" : "outline"}
+                  className="cursor-pointer font-normal"
+                >
+                  {f}
+                </Badge>
+              ),
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {gallery.map((g) => (
               <Card key={g.id} className="overflow-hidden">
-                <div className="relative h-32" style={{ background: `linear-gradient(135deg, ${g.hue}, oklch(0.95 0.02 240))` }}>
-                  <span className="absolute right-1.5 top-1.5"><Tone tone={g.tone} /></span>
+                <div
+                  className="relative h-32"
+                  style={{ background: `linear-gradient(135deg, ${g.hue}, oklch(0.95 0.02 240))` }}
+                >
+                  <span className="absolute right-1.5 top-1.5">
+                    <Tone tone={g.tone} />
+                  </span>
                   {g.faces > 0 && (
                     <div className="absolute left-1.5 bottom-1.5 rounded-full border bg-background/90 px-1.5 py-0.5 text-[10px]">
-                      <ScanFace className="mr-1 inline size-3" />{g.faces} face{g.faces > 1 ? "s" : ""}
+                      <ScanFace className="mr-1 inline size-3" />
+                      {g.faces} face{g.faces > 1 ? "s" : ""}
                     </div>
                   )}
                 </div>
                 <div className="p-2">
                   <p className="line-clamp-2 text-xs">{g.caption}</p>
                   <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
-                    <span className="flex items-center gap-0.5"><MapPin className="size-3" />GEO</span>
+                    <span className="flex items-center gap-0.5">
+                      <MapPin className="size-3" />
+                      GEO
+                    </span>
                     <span>2025-11-{String((g.id % 28) + 1).padStart(2, "0")}</span>
                   </div>
                 </div>
@@ -73,17 +105,25 @@ function Page() {
 
         <Card>
           <CardContent className="p-0">
-            <div className="h-56 rounded-t-lg" style={{ background: "linear-gradient(135deg, oklch(0.75 0.14 30), oklch(0.9 0.05 250))" }} />
+            <div
+              className="h-56 rounded-t-lg"
+              style={{
+                background: "linear-gradient(135deg, oklch(0.75 0.14 30), oklch(0.9 0.05 250))",
+              }}
+            />
             <div className="p-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold">Selected · IMG-482</h3>
                 <Tone tone="negative" />
               </div>
-              <p className="mt-1 text-xs text-muted-foreground">Convoy near restricted checkpoint</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Convoy near restricted checkpoint
+              </p>
 
               <div className="mt-3 space-y-3">
                 <Row icon={<Tag className="size-3.5" />} label="AI caption">
-                  "Group of vehicles moving through arid landscape, dusk lighting, uniformed personnel visible."
+                  "Group of vehicles moving through arid landscape, dusk lighting, uniformed
+                  personnel visible."
                 </Row>
                 <Row icon={<ScanFace className="size-3.5" />} label="Faces">
                   2 detected · watchlist hit on Vector-17 (71%)
@@ -114,11 +154,20 @@ function Page() {
   );
 }
 
-function Row({ icon, label, children }: { icon: React.ReactNode; label: string; children: React.ReactNode }) {
+function Row({
+  icon,
+  label,
+  children,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-md border bg-card p-2.5">
       <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {icon}{label}
+        {icon}
+        {label}
       </div>
       <p className="mt-0.5 text-xs">{children}</p>
     </div>

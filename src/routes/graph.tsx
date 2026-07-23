@@ -11,7 +11,14 @@ export const Route = createFileRoute("/graph")({
   component: Page,
 });
 
-type Node = { id: string; label: string; type: "person" | "org" | "country" | "domain" | "phone" | "email" | "social"; x: number; y: number; r: number };
+type Node = {
+  id: string;
+  label: string;
+  type: "person" | "org" | "country" | "domain" | "phone" | "email" | "social";
+  x: number;
+  y: number;
+  r: number;
+};
 const NODES: Node[] = [
   { id: "v17", label: "Vector-17", type: "person", x: 400, y: 260, r: 22 },
   { id: "ch", label: "channel_9821", type: "social", x: 260, y: 180, r: 16 },
@@ -25,10 +32,16 @@ const NODES: Node[] = [
   { id: "ort", label: "M. Ortega", type: "person", x: 620, y: 420, r: 12 },
 ];
 const EDGES: [string, string, string][] = [
-  ["v17", "ch", "posts via"], ["v17", "em", "owns"], ["v17", "sy", "located"],
-  ["ch", "ru", "hosted"], ["ch", "hn", "amplifies"],
-  ["am", "dom", "operates"], ["am", "v17", "mentioned"],
-  ["ph", "v17", "linked"], ["ort", "am", "employee"], ["hn", "v17", "reports on"],
+  ["v17", "ch", "posts via"],
+  ["v17", "em", "owns"],
+  ["v17", "sy", "located"],
+  ["ch", "ru", "hosted"],
+  ["ch", "hn", "amplifies"],
+  ["am", "dom", "operates"],
+  ["am", "v17", "mentioned"],
+  ["ph", "v17", "linked"],
+  ["ort", "am", "employee"],
+  ["hn", "v17", "reports on"],
 ];
 
 const TYPE_STYLE: Record<Node["type"], { fill: string; ring: string }> = {
@@ -50,9 +63,18 @@ function Page() {
         description="Explore relationships between people, organizations, places, and digital identifiers."
         actions={
           <>
-            <Button variant="outline" size="sm" className="gap-1.5"><RouteIcon className="size-3.5" />Path finding</Button>
-            <Button variant="outline" size="sm" className="gap-1.5"><Filter className="size-3.5" />Filter</Button>
-            <Button size="sm" className="gap-1.5"><Maximize2 className="size-3.5" />Full screen</Button>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <RouteIcon className="size-3.5" />
+              Path finding
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5">
+              <Filter className="size-3.5" />
+              Filter
+            </Button>
+            <Button size="sm" className="gap-1.5">
+              <Maximize2 className="size-3.5" />
+              Full screen
+            </Button>
           </>
         }
       />
@@ -73,24 +95,55 @@ function Page() {
                 ))}
               </div>
               <div className="flex gap-1">
-                <Button variant="ghost" size="icon" className="size-7"><ZoomOut className="size-3.5" /></Button>
-                <Button variant="ghost" size="icon" className="size-7"><ZoomIn className="size-3.5" /></Button>
+                <Button variant="ghost" size="icon" className="size-7">
+                  <ZoomOut className="size-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="size-7">
+                  <ZoomIn className="size-3.5" />
+                </Button>
               </div>
             </div>
-            <div className="relative h-[560px] w-full overflow-hidden rounded-b-lg" style={{ background: "radial-gradient(circle at 50% 45%, oklch(0.97 0.02 240), oklch(0.99 0.005 240))" }}>
+            <div
+              className="relative h-[560px] w-full overflow-hidden rounded-b-lg"
+              style={{
+                background:
+                  "radial-gradient(circle at 50% 45%, oklch(0.97 0.02 240), oklch(0.99 0.005 240))",
+              }}
+            >
               <svg viewBox="0 0 800 560" className="h-full w-full">
                 <defs>
                   <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-                    <path d="M24 0H0V24" fill="none" stroke="oklch(0.94 0.01 245)" strokeWidth="0.5" />
+                    <path
+                      d="M24 0H0V24"
+                      fill="none"
+                      stroke="oklch(0.94 0.01 245)"
+                      strokeWidth="0.5"
+                    />
                   </pattern>
                 </defs>
                 <rect width="800" height="560" fill="url(#grid)" />
                 {EDGES.map(([a, b, rel], i) => {
-                  const na = byId[a]; const nb = byId[b];
+                  const na = byId[a];
+                  const nb = byId[b];
                   return (
                     <g key={i}>
-                      <line x1={na.x} y1={na.y} x2={nb.x} y2={nb.y} stroke="oklch(0.75 0.03 245)" strokeWidth="1.5" />
-                      <text x={(na.x + nb.x) / 2} y={(na.y + nb.y) / 2 - 4} textAnchor="middle" fontSize="9" fill="oklch(0.5 0.02 250)">{rel}</text>
+                      <line
+                        x1={na.x}
+                        y1={na.y}
+                        x2={nb.x}
+                        y2={nb.y}
+                        stroke="oklch(0.75 0.03 245)"
+                        strokeWidth="1.5"
+                      />
+                      <text
+                        x={(na.x + nb.x) / 2}
+                        y={(na.y + nb.y) / 2 - 4}
+                        textAnchor="middle"
+                        fontSize="9"
+                        fill="oklch(0.5 0.02 250)"
+                      >
+                        {rel}
+                      </text>
                     </g>
                   );
                 })}
@@ -99,16 +152,38 @@ function Page() {
                   return (
                     <g key={n.id}>
                       <circle cx={n.x} cy={n.y} r={n.r + 6} fill={s.fill} opacity="0.15" />
-                      <circle cx={n.x} cy={n.y} r={n.r} fill="white" stroke={s.ring} strokeWidth="2" />
-                      <text x={n.x} y={n.y + n.r + 12} textAnchor="middle" fontSize="10" fontWeight="600" fill="oklch(0.22 0.03 250)">{n.label}</text>
+                      <circle
+                        cx={n.x}
+                        cy={n.y}
+                        r={n.r}
+                        fill="white"
+                        stroke={s.ring}
+                        strokeWidth="2"
+                      />
+                      <text
+                        x={n.x}
+                        y={n.y + n.r + 12}
+                        textAnchor="middle"
+                        fontSize="10"
+                        fontWeight="600"
+                        fill="oklch(0.22 0.03 250)"
+                      >
+                        {n.label}
+                      </text>
                     </g>
                   );
                 })}
               </svg>
               <div className="absolute bottom-3 right-3 flex gap-1">
-                <Button variant="outline" size="sm">Expand</Button>
-                <Button variant="outline" size="sm">Collapse</Button>
-                <Button variant="outline" size="sm">Highlight path</Button>
+                <Button variant="outline" size="sm">
+                  Expand
+                </Button>
+                <Button variant="outline" size="sm">
+                  Collapse
+                </Button>
+                <Button variant="outline" size="sm">
+                  Highlight path
+                </Button>
               </div>
             </div>
           </CardContent>
@@ -117,12 +192,19 @@ function Page() {
         <div className="space-y-4">
           <Card>
             <CardContent className="p-4">
-              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">Selected node</div>
+              <div className="text-[11px] uppercase tracking-wider text-muted-foreground">
+                Selected node
+              </div>
               <div className="mt-1 flex items-center gap-2">
-                <span className="size-3 rounded-full" style={{ background: TYPE_STYLE.person.fill }} />
+                <span
+                  className="size-3 rounded-full"
+                  style={{ background: TYPE_STYLE.person.fill }}
+                />
                 <h3 className="text-lg font-semibold">Vector-17</h3>
               </div>
-              <Badge variant="outline" className="mt-1">Person · Watchlist</Badge>
+              <Badge variant="outline" className="mt-1">
+                Person · Watchlist
+              </Badge>
               <dl className="mt-3 space-y-1 text-xs">
                 <Row k="Aliases" v="V17, vect_seventeen" />
                 <Row k="Country" v="SY / RU" />
@@ -137,8 +219,14 @@ function Page() {
               <h3 className="text-sm font-semibold">Shortest path</h3>
               <p className="mt-1 text-xs text-muted-foreground">Vector-17 → Aster Motors</p>
               <ol className="mt-2 space-y-1 text-xs">
-                <li>1. Vector-17 <span className="text-muted-foreground">mentioned</span> Aster Motors</li>
-                <li>2. Vector-17 <span className="text-muted-foreground">posts via</span> channel_9821 <span className="text-muted-foreground">→</span> @osint_watch <span className="text-muted-foreground">reports on</span> Aster Motors</li>
+                <li>
+                  1. Vector-17 <span className="text-muted-foreground">mentioned</span> Aster Motors
+                </li>
+                <li>
+                  2. Vector-17 <span className="text-muted-foreground">posts via</span> channel_9821{" "}
+                  <span className="text-muted-foreground">→</span> @osint_watch{" "}
+                  <span className="text-muted-foreground">reports on</span> Aster Motors
+                </li>
               </ol>
             </CardContent>
           </Card>

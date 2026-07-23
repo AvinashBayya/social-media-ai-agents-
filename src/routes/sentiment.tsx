@@ -3,8 +3,16 @@ import { AppShell, PageHeader } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
-  AreaChart, Area, ResponsiveContainer, CartesianGrid, XAxis, YAxis, Tooltip,
-  BarChart, Bar, Legend,
+  AreaChart,
+  Area,
+  ResponsiveContainer,
+  CartesianGrid,
+  XAxis,
+  YAxis,
+  Tooltip,
+  BarChart,
+  Bar,
+  Legend,
 } from "recharts";
 
 export const Route = createFileRoute("/sentiment")({
@@ -20,8 +28,14 @@ const days = Array.from({ length: 30 }).map((_, i) => ({
 }));
 
 const emotions = [
-  { e: "Trust", v: 62 }, { e: "Joy", v: 41 }, { e: "Anticipation", v: 38 },
-  { e: "Sadness", v: 24 }, { e: "Anger", v: 48 }, { e: "Fear", v: 34 }, { e: "Disgust", v: 18 }, { e: "Surprise", v: 27 },
+  { e: "Trust", v: 62 },
+  { e: "Joy", v: 41 },
+  { e: "Anticipation", v: 38 },
+  { e: "Sadness", v: 24 },
+  { e: "Anger", v: 48 },
+  { e: "Fear", v: 34 },
+  { e: "Disgust", v: 18 },
+  { e: "Surprise", v: 27 },
 ];
 
 const compare = [
@@ -43,16 +57,30 @@ function Page() {
       <div className="grid gap-4 lg:grid-cols-4">
         {[
           { l: "Overall score", v: "-12", sub: "Slightly negative", val: 44 },
-          { l: "Positive", v: "34%", sub: "vs 40% last week", val: 34, color: "oklch(0.68 0.17 145)" },
+          {
+            l: "Positive",
+            v: "34%",
+            sub: "vs 40% last week",
+            val: 34,
+            color: "oklch(0.68 0.17 145)",
+          },
           { l: "Neutral", v: "38%", sub: "stable", val: 38, color: "oklch(0.6 0.19 255)" },
-          { l: "Negative", v: "28%", sub: "vs 22% last week", val: 28, color: "oklch(0.62 0.23 27)" },
+          {
+            l: "Negative",
+            v: "28%",
+            sub: "vs 22% last week",
+            val: 28,
+            color: "oklch(0.62 0.23 27)",
+          },
         ].map((k) => (
-          <Card key={k.l}><CardContent className="p-4">
-            <div className="text-xs text-muted-foreground">{k.l}</div>
-            <div className="mt-1 text-2xl font-semibold">{k.v}</div>
-            <div className="text-[11px] text-muted-foreground">{k.sub}</div>
-            <Progress value={k.val} className="mt-2 h-1.5" />
-          </CardContent></Card>
+          <Card key={k.l}>
+            <CardContent className="p-4">
+              <div className="text-xs text-muted-foreground">{k.l}</div>
+              <div className="mt-1 text-2xl font-semibold">{k.v}</div>
+              <div className="text-[11px] text-muted-foreground">{k.sub}</div>
+              <Progress value={k.val} className="mt-2 h-1.5" />
+            </CardContent>
+          </Card>
         ))}
       </div>
 
@@ -63,13 +91,55 @@ function Page() {
             <div className="mt-3 h-64">
               <ResponsiveContainer>
                 <AreaChart data={days} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.01 245)" vertical={false} />
-                  <XAxis dataKey="d" tick={{ fontSize: 10, fill: "oklch(0.5 0.02 250)" }} interval={4} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "oklch(0.5 0.02 250)" }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: "white", border: "1px solid oklch(0.92 0.01 245)", borderRadius: 8, fontSize: 12 }} />
-                  <Area type="monotone" dataKey="pos" stackId="1" stroke="oklch(0.68 0.17 145)" fill="oklch(0.68 0.17 145)" fillOpacity={0.6} />
-                  <Area type="monotone" dataKey="neu" stackId="1" stroke="oklch(0.6 0.19 255)" fill="oklch(0.6 0.19 255)" fillOpacity={0.5} />
-                  <Area type="monotone" dataKey="neg" stackId="1" stroke="oklch(0.62 0.23 27)" fill="oklch(0.62 0.23 27)" fillOpacity={0.6} />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="oklch(0.92 0.01 245)"
+                    vertical={false}
+                  />
+                  <XAxis
+                    dataKey="d"
+                    tick={{ fontSize: 10, fill: "oklch(0.5 0.02 250)" }}
+                    interval={4}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "oklch(0.5 0.02 250)" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: "white",
+                      border: "1px solid oklch(0.92 0.01 245)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="pos"
+                    stackId="1"
+                    stroke="oklch(0.68 0.17 145)"
+                    fill="oklch(0.68 0.17 145)"
+                    fillOpacity={0.6}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="neu"
+                    stackId="1"
+                    stroke="oklch(0.6 0.19 255)"
+                    fill="oklch(0.6 0.19 255)"
+                    fillOpacity={0.5}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="neg"
+                    stackId="1"
+                    stroke="oklch(0.62 0.23 27)"
+                    fill="oklch(0.62 0.23 27)"
+                    fillOpacity={0.6}
+                  />
                 </AreaChart>
               </ResponsiveContainer>
             </div>
@@ -81,7 +151,10 @@ function Page() {
             <div className="mt-3 space-y-2">
               {emotions.map((e) => (
                 <div key={e.e}>
-                  <div className="mb-0.5 flex justify-between text-xs"><span>{e.e}</span><span className="tabular-nums text-muted-foreground">{e.v}%</span></div>
+                  <div className="mb-0.5 flex justify-between text-xs">
+                    <span>{e.e}</span>
+                    <span className="tabular-nums text-muted-foreground">{e.v}%</span>
+                  </div>
                   <Progress value={e.v} className="h-1.5" />
                 </div>
               ))}
@@ -96,14 +169,31 @@ function Page() {
           <div className="mt-3 h-64">
             <ResponsiveContainer>
               <BarChart data={compare}>
-                <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.01 245)" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="oklch(0.92 0.01 245)"
+                  vertical={false}
+                />
                 <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ background: "white", border: "1px solid oklch(0.92 0.01 245)", borderRadius: 8, fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{
+                    background: "white",
+                    border: "1px solid oklch(0.92 0.01 245)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <Bar dataKey="pos" stackId="a" fill="oklch(0.68 0.17 145)" name="Positive" />
                 <Bar dataKey="neu" stackId="a" fill="oklch(0.6 0.19 255)" name="Neutral" />
-                <Bar dataKey="neg" stackId="a" fill="oklch(0.62 0.23 27)" name="Negative" radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="neg"
+                  stackId="a"
+                  fill="oklch(0.62 0.23 27)"
+                  name="Negative"
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </div>
