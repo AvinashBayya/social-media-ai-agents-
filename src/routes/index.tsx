@@ -82,6 +82,7 @@ import {
   Trash2,
   Settings,
   Shield,
+  Cpu,
 } from "lucide-react";
 import {
   Area,
