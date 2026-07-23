@@ -299,6 +299,29 @@ export class ConnectorManager {
         rateLimits: { total: 1000, used: 15, remaining: 985 },
       }),
     );
+
+    // 9. Maltego Graph Exchange Connector
+    this.register(
+      new MockAdapter({
+        id: "maltego-exchange",
+        name: "Maltego Graph Integration",
+        category: "Investigation Connectors",
+        description:
+          "Enables import/export of graph topologies, entities and evidence relationships with Maltego.",
+        version: "2.0.1",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: [
+          "graph-exchange",
+          "csv-export",
+          "graphml-parsing",
+          "neo4j-binding",
+          "relationship-data-mapping",
+        ],
+        averageRuntimeMs: 140,
+        rateLimits: { total: 500, used: 8, remaining: 492 },
+      }),
+    );
   }
 }
 

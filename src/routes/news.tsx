@@ -1529,6 +1529,20 @@ export interface SpiderfootModuleResultItem {
   confidence: number;
 }
 
+// Maltego Investigation Graph Exchange Connector Architecture & Types
+export interface MaltegoExportParams {
+  query: string;
+  format:
+    "CSV" | "GraphML" | "JSON" | "Neo4j" | "Relationship Data" | "Entity Data" | "Evidence Data";
+  nodesCount?: number;
+  edgesCount?: number;
+}
+
+export interface MaltegoImportParams {
+  format: "CSV" | "GraphML" | "JSON" | "Neo4j";
+  fileContent: string;
+}
+
 /*
 ================================================================================
 DATABASE SCHEMA PLACEHOLDERS (Future Prisma / SQL Integration)
@@ -2200,6 +2214,45 @@ model SpiderfootIntelligenceCache {
   extractedAt    DateTime @default(now())
 }
 
+// ================================================================================
+// MALTEGO INVESTIGATION GRAPH EXCHANGE SCHEMAS (Prisma / SQL Placeholders)
+// ================================================================================
+
+// 1. Maltego Integration Master Table
+model MaltegoConnectorConfig {
+  id                   String   @id @default(uuid())
+  status               String   @default("Connected") // Connected, Disabled, Error
+  health               String   @default("Healthy") // Healthy, Degraded, Down
+  clientApiKeyEnc      String?
+  clientOAuthTokenEnc  String?
+  exportUrl            String   @default("https://sentinel.ai/api/maltego/export")
+  importUrl            String   @default("https://sentinel.ai/api/maltego/import")
+  loggingEnabled       Boolean  @default(true)
+  updatedAt            DateTime @updatedAt
+}
+
+// 2. Maltego Exchange Job History Table
+model MaltegoExchangeJob {
+  id              String   @id @default(uuid())
+  jobType         String   // Import, Export
+  timestamp       DateTime @default(now())
+  fileFormat      String   // CSV, GraphML, JSON, Neo4j
+  targetQuery     String
+  status          String   // Success, Failed
+  entitiesCount   Int      @default(0)
+  relationshipsCnt Int     @default(0)
+  latencyMs       Int      @default(0)
+  errorDetail     String?
+}
+
+// 3. Maltego Sync Entity Registry Table (Tracks custom mappings)
+model MaltegoSyncedEntity {
+  id            String   @id @default(uuid())
+  sentinelType  String   // e.g. "person", "domain"
+  maltegoType   String   // e.g. "maltego.Person", "maltego.Domain"
+  isActive      Boolean  @default(true)
+}
+
 // 1. Central Connector Registry Configuration Table
 model ConnectorRegistry {
   id                  String   @id @default(uuid())
@@ -2261,6 +2314,44 @@ export const updateConnectorConfigServer = createServerFn({ method: "POST" })
     if (!data) throw new Error("Missing parameters");
     console.log(`[Marketplace API] Updating config for connector ${data.id}:`, data.config);
     return { success: true, id: data.id, timestamp: new Date().toISOString() };
+  });
+
+export const exportToMaltego = createServerFn({ method: "POST" })
+  .validator((data: { params: MaltegoExportParams } | undefined) => data)
+  .handler(async ({ data }) => {
+    const params = data?.params;
+    if (!params) throw new Error("Missing parameters for Maltego export");
+    console.log(
+      `[Maltego API] Simulating graph export for query: ${params.query} in format: ${params.format}`,
+    );
+
+    return {
+      success: true,
+      timestamp: new Date().toISOString(),
+      jobId: `mtg-exp-${Date.now()}`,
+      format: params.format,
+      nodesExported: params.nodesCount || 12,
+      edgesExported: params.edgesCount || 6,
+      downloadUrl: `https://sentinel.ai/api/maltego/download?jobId=mtg-exp-${Date.now()}&format=${params.format.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+    };
+  });
+
+export const importFromMaltego = createServerFn({ method: "POST" })
+  .validator((data: { params: MaltegoImportParams } | undefined) => data)
+  .handler(async ({ data }) => {
+    const params = data?.params;
+    if (!params) throw new Error("Missing parameters for Maltego import");
+    console.log(`[Maltego API] Simulating graph import in format: ${params.format}`);
+
+    return {
+      success: true,
+      timestamp: new Date().toISOString(),
+      jobId: `mtg-imp-${Date.now()}`,
+      format: params.format,
+      nodesImported: 14,
+      edgesImported: 8,
+      status: "Synced",
+    };
   });
 
 type NewsSearch = {

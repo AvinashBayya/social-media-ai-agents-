@@ -16,6 +16,8 @@ import {
   executeGoogleDork,
   executeShodanScan,
   executeSpiderfootScan,
+  exportToMaltego,
+  importFromMaltego,
 } from "./news";
 import type {
   GoogleDorkParams,
@@ -27,6 +29,8 @@ import type {
   ShodanHistoryItem,
   SpiderfootScanParams,
   SpiderfootModuleResultItem,
+  MaltegoExportParams,
+  MaltegoImportParams,
 } from "./news";
 import { ConnectorManager } from "../lib/connector-manager";
 import type {
@@ -577,6 +581,201 @@ function ResearchCenter() {
     } finally {
       setIsExecutingSpiderfoot(false);
       setSpiderfootStatus("Connected");
+    }
+  };
+
+  // Maltego Investigation Graph Exchange Connector States
+  const [maltegoStatus, setMaltegoStatus] = useState<"Connected" | "Disabled" | "Error">(
+    "Connected",
+  );
+  const [maltegoHealth, setMaltegoHealth] = useState<"Healthy" | "Degraded" | "Down">("Healthy");
+  const [maltegoFormat, setMaltegoFormat] = useState<string>("GraphML");
+  const [maltegoLogs, setMaltegoLogs] = useState<any[]>([
+    {
+      timestamp: new Date().toISOString(),
+      level: "INFO",
+      message: "Maltego graph exchange adapter initialized.",
+    },
+    {
+      timestamp: new Date(Date.now() - 5000).toISOString(),
+      level: "SUCCESS",
+      message: "Verification handshake with local Maltego client succeeded.",
+    },
+  ]);
+  const [isExchangingMaltego, setIsExchangingMaltego] = useState(false);
+  const [maltegoApiKey, setMaltegoApiKey] = useState("MALTEGO_MOCK_TRANSFORM_SECRET_XXXXXXXXXX");
+  const [maltegoExportUrl, setMaltegoExportUrl] = useState(
+    "https://sentinel.ai/api/maltego/export",
+  );
+  const [maltegoImportUrl, setMaltegoImportUrl] = useState(
+    "https://sentinel.ai/api/maltego/import",
+  );
+
+  const handleExportMaltego = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (maltegoStatus === "Disabled") {
+      setMaltegoLogs((prev) => [
+        {
+          timestamp: new Date().toISOString(),
+          level: "WARNING",
+          message: "Export blocked: Maltego connector is disabled.",
+        },
+        ...prev,
+      ]);
+      return;
+    }
+
+    setIsExchangingMaltego(true);
+    setMaltegoLogs((prev) => [
+      {
+        timestamp: new Date().toISOString(),
+        level: "INFO",
+        message: `Initiating graph topology compile for target: ${activeQuery}`,
+      },
+      {
+        timestamp: new Date().toISOString(),
+        level: "INFO",
+        message: `Compiling format target: ${maltegoFormat}`,
+      },
+      ...prev,
+    ]);
+
+    try {
+      const res = await exportToMaltego({
+        data: {
+          params: {
+            query: activeQuery,
+            format: maltegoFormat as any,
+            nodesCount: graphNodes.length,
+            edgesCount: graphEdges.length,
+          },
+        },
+      });
+
+      setMaltegoLogs((prev) => [
+        {
+          timestamp: new Date().toISOString(),
+          level: "SUCCESS",
+          message: `Graph export completed: Job ID ${res.jobId}`,
+        },
+        {
+          timestamp: new Date().toISOString(),
+          level: "SUCCESS",
+          message: `Payload ready: ${res.nodesExported} Entities & ${res.edgesExported} Relationship Links compiled.`,
+        },
+        {
+          timestamp: new Date().toISOString(),
+          level: "INFO",
+          message: `Mock download link generated: ${res.downloadUrl}`,
+        },
+        ...prev,
+      ]);
+
+      // Sync back to registry counts
+      const manager = ConnectorManager.getInstance();
+      const conn = manager.get("maltego-exchange");
+      if (conn) {
+        conn.metadata.usageCount++;
+        conn.metadata.lastRun = new Date().toISOString();
+        conn.metadata.logs.push({
+          timestamp: new Date().toISOString(),
+          level: "SUCCESS",
+          message: `Graph exported successfully in ${maltegoFormat} format.`,
+        });
+        setConnectors([...manager.list()]);
+      }
+    } catch (err) {
+      console.error(err);
+      setMaltegoLogs((prev) => [
+        {
+          timestamp: new Date().toISOString(),
+          level: "ERROR",
+          message: `Export failed: ${String(err)}`,
+        },
+        ...prev,
+      ]);
+    } finally {
+      setIsExchangingMaltego(false);
+    }
+  };
+
+  const handleImportMaltego = async () => {
+    if (maltegoStatus === "Disabled") {
+      setMaltegoLogs((prev) => [
+        {
+          timestamp: new Date().toISOString(),
+          level: "WARNING",
+          message: "Import blocked: Maltego connector is disabled.",
+        },
+        ...prev,
+      ]);
+      return;
+    }
+
+    setIsExchangingMaltego(true);
+    setMaltegoLogs((prev) => [
+      {
+        timestamp: new Date().toISOString(),
+        level: "INFO",
+        message: `Awaiting Graph exchange file upload in ${maltegoFormat} format...`,
+      },
+      ...prev,
+    ]);
+
+    try {
+      const res = await importFromMaltego({
+        data: {
+          params: {
+            format:
+              maltegoFormat === "Neo4j" ||
+              maltegoFormat === "JSON" ||
+              maltegoFormat === "CSV" ||
+              maltegoFormat === "GraphML"
+                ? maltegoFormat
+                : "GraphML",
+            fileContent: "MOCK_IMPORTED_CONTENT_xml_graph_elements_node_relations",
+          },
+        },
+      });
+
+      setMaltegoLogs((prev) => [
+        {
+          timestamp: new Date().toISOString(),
+          level: "SUCCESS",
+          message: `Graph import completed: Job ID ${res.jobId}`,
+        },
+        {
+          timestamp: new Date().toISOString(),
+          level: "SUCCESS",
+          message: `Payload integrated: ${res.nodesImported} new Entities and ${res.edgesImported} relationships synchronized.`,
+        },
+        ...prev,
+      ]);
+
+      const manager = ConnectorManager.getInstance();
+      const conn = manager.get("maltego-exchange");
+      if (conn) {
+        conn.metadata.usageCount++;
+        conn.metadata.lastRun = new Date().toISOString();
+        conn.metadata.logs.push({
+          timestamp: new Date().toISOString(),
+          level: "SUCCESS",
+          message: `Graph imported successfully from ${maltegoFormat}.`,
+        });
+        setConnectors([...manager.list()]);
+      }
+    } catch (err) {
+      console.error(err);
+      setMaltegoLogs((prev) => [
+        {
+          timestamp: new Date().toISOString(),
+          level: "ERROR",
+          message: `Import failed: ${String(err)}`,
+        },
+        ...prev,
+      ]);
+    } finally {
+      setIsExchangingMaltego(false);
     }
   };
 
@@ -3360,6 +3559,197 @@ function ResearchCenter() {
                   </div>
                 </CardContent>
               </Card>
+
+              {/* MALTEGO GRAPH EXCHANGE CONNECTOR */}
+              <div className="mt-6 border-t pt-6 space-y-4 text-left">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-semibold flex items-center gap-2">
+                      <Network className="size-4 text-primary" /> Maltego Graph Exchange Hub
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      Synchronize investigation graph topologies, entities and evidence
+                      relationships with Maltego client
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={`font-semibold border-0 ${
+                        maltegoStatus === "Connected"
+                          ? "bg-green-500/10 text-green-500"
+                          : maltegoStatus === "Disabled"
+                            ? "bg-muted text-muted-foreground"
+                            : "bg-red-500/10 text-red-500"
+                      }`}
+                    >
+                      Status: {maltegoStatus}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={`font-semibold border-0 ${
+                        maltegoHealth === "Healthy"
+                          ? "bg-green-500/10 text-green-500"
+                          : "bg-amber-500/10 text-amber-500"
+                      }`}
+                    >
+                      Health: {maltegoHealth}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 md:grid-cols-3">
+                  {/* CONFIGURATION & AUTH CARD */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <Key className="size-3.5 text-primary" /> Credentials & Transforms Config
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3.5 space-y-3 text-xs text-left">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                          API Secret key
+                        </label>
+                        <Input
+                          type="password"
+                          value={maltegoApiKey}
+                          onChange={(e) => setMaltegoApiKey(e.target.value)}
+                          className="h-7 text-[10px] font-mono bg-card"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                          Export Endpoint URL
+                        </label>
+                        <Input
+                          value={maltegoExportUrl}
+                          onChange={(e) => setMaltegoExportUrl(e.target.value)}
+                          className="h-7 text-[10px] font-mono bg-card"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                          Import Endpoint URL
+                        </label>
+                        <Input
+                          value={maltegoImportUrl}
+                          onChange={(e) => setMaltegoImportUrl(e.target.value)}
+                          className="h-7 text-[10px] font-mono bg-card"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* IMPORT & EXPORT ACTIONS CARD */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                        <ArrowUpRight className="size-3.5 text-primary" /> Data Exchange Controls
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3.5 space-y-3 text-xs text-left">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                          Interoperability Format
+                        </label>
+                        <select
+                          value={maltegoFormat}
+                          onChange={(e) => setMaltegoFormat(e.target.value)}
+                          className="w-full bg-card text-foreground border rounded px-2 py-1 outline-none text-xs h-7 font-medium"
+                        >
+                          <option value="CSV">CSV Format</option>
+                          <option value="GraphML">GraphML Format</option>
+                          <option value="JSON">JSON Topology</option>
+                          <option value="Neo4j">Neo4j Database</option>
+                          <option value="Relationship Data">Relationship Data</option>
+                          <option value="Entity Data">Entity Data</option>
+                          <option value="Evidence Data">Evidence Data</option>
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        <Button
+                          onClick={handleExportMaltego}
+                          disabled={isExchangingMaltego || maltegoStatus === "Disabled"}
+                          className="h-8 text-xs font-semibold gap-1.5"
+                        >
+                          {isExchangingMaltego ? (
+                            <RefreshCw className="size-3 animate-spin" />
+                          ) : (
+                            <Play className="size-3" />
+                          )}{" "}
+                          Export Graph
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={handleImportMaltego}
+                          disabled={isExchangingMaltego || maltegoStatus === "Disabled"}
+                          className="h-8 text-xs font-semibold gap-1.5"
+                        >
+                          {isExchangingMaltego ? (
+                            <RefreshCw className="size-3 animate-spin" />
+                          ) : (
+                            <ArrowUpRight className="size-3 rotate-180" />
+                          )}{" "}
+                          Import Graph
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* EXCHANGE LOGS CONSOLE */}
+                  <Card className="bg-slate-900 border-primary/5">
+                    <CardHeader className="pb-1 py-2 border-b border-white/5 flex flex-row items-center justify-between">
+                      <CardTitle className="text-xs font-semibold uppercase tracking-wider text-white/50 flex items-center gap-1">
+                        <Terminal className="size-3.5 text-primary" /> Exchange Console
+                      </CardTitle>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setMaltegoLogs([])}
+                        className="h-5 text-[9px] text-white/40 hover:text-white"
+                      >
+                        Clear
+                      </Button>
+                    </CardHeader>
+                    <CardContent className="p-2.5">
+                      <div className="rounded bg-black/90 p-2.5 font-mono text-[9px] text-green-400 space-y-1.5 max-h-28 overflow-y-auto leading-normal text-left">
+                        {maltegoLogs.length === 0 ? (
+                          <div className="text-white/30 italic text-center py-2">
+                            No logging events registered.
+                          </div>
+                        ) : (
+                          maltegoLogs.map((log, idx) => (
+                            <div
+                              key={idx}
+                              className="flex gap-1.5 items-start border-b border-white/5 pb-1"
+                            >
+                              <span className="text-white/20 select-none">
+                                [{log.timestamp.substring(11, 19)}]
+                              </span>
+                              <span
+                                className={`font-bold ${
+                                  log.level === "SUCCESS"
+                                    ? "text-green-500"
+                                    : log.level === "WARNING"
+                                      ? "text-amber-500"
+                                      : log.level === "ERROR"
+                                        ? "text-red-500"
+                                        : "text-blue-400"
+                                }`}
+                              >
+                                {log.level}
+                              </span>
+                              <span className="text-white/80">{log.message}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
             </TabsContent>
 
             {/* ENTITIES TAB */}
