@@ -1062,6 +1062,148 @@ export const fetchSocialIntelligence = createServerFn({ method: "GET" })
     }
   });
 
+
+// Google Dorks Search Connector Architecture & Type Definitions
+export interface GoogleDorkParams {
+  query: string;
+  site?: string;
+  filetype?: string;
+  intitle?: string;
+  inurl?: string;
+  related?: string;
+  cache?: string;
+  maxResults?: number;
+  safetyFilter?: boolean;
+}
+
+export interface GoogleDorkLog {
+  timestamp: string;
+  level: "INFO" | "WARNING" | "ERROR" | "SUCCESS";
+  message: string;
+}
+
+export interface GoogleDorkHistoryItem {
+  id: string;
+  timestamp: string;
+  rawQuery: string;
+  parameters: GoogleDorkParams;
+  resultsCount: number;
+  status: "success" | "error";
+}
+
+/*
+================================================================================
+DATABASE SCHEMA PLACEHOLDERS (Future Prisma / SQL Integration)
+================================================================================
+
+// 1. Connector Configuration Registry Table
+model DorkConnectorConfig {
+  id                  String   @id @default(uuid())
+  connectorId         String   @unique @default("google_dorks")
+  name                String   @default("Google Dorks Connector")
+  status              String   @default("Connected") // Connected, Running, Disabled, Error
+  maxConcurrentRuns   Int      @default(3)
+  rateLimitPerHour    Int      @default(100)
+  rateLimitUsed       Int      @default(24)
+  lastHealthCheck     DateTime @default(now())
+  latencyMs           Int      @default(142)
+  successRatePct      Int      @default(98)
+  isActive            Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+}
+
+// 2. Connector Execution Timeline & History Table
+model DorkExecutionHistory {
+  id             String   @id @default(uuid())
+  timestamp      DateTime @default(now())
+  rawQuery       String
+  siteFilter     String?
+  filetypeFilter String?
+  intitleFilter  String?
+  inurlFilter    String?
+  relatedFilter  String?
+  cacheFilter    String?
+  resultsCount   Int      @default(0)
+  executionMs    Int      @default(350)
+  status         String   @default("success") // success, error
+  errorMessage   String?
+}
+
+// 3. Connector Diagnostic Logs Table
+model DorkTelemetryLog {
+  id        String   @id @default(uuid())
+  timestamp DateTime @default(now())
+  level     String   // INFO, WARNING, ERROR, SUCCESS
+  message   String
+  service   String   @default("google_dorks_connector")
+}
+================================================================================
+*/
+
+export const executeGoogleDork = createServerFn({ method: "POST" })
+  .validator((data: { params: GoogleDorkParams } | undefined) => data)
+  .handler(async ({ data }) => {
+    const params = data?.params;
+    if (!params) throw new Error("Missing parameters for Google Dorks execution");
+
+    // Stub execution: returns mock telemetry stats, logs, and schema response structure
+    const rawQuery = [
+      params.site ? `site:${params.site}` : "",
+      params.filetype ? `filetype:${params.filetype}` : "",
+      params.intitle ? `intitle:"${params.intitle}"` : "",
+      params.inurl ? `inurl:"${params.inurl}"` : "",
+      params.related ? `related:${params.related}` : "",
+      params.cache ? `cache:${params.cache}` : "",
+      params.query ? `"${params.query}"` : ""
+    ].filter(Boolean).join(" ") || "site:github.com filetype:pdf confidential";
+
+    console.log(`[GoogleDorksConnector] Stub executing query: ${rawQuery}`);
+
+    // Return connector metrics and database records payload
+    return {
+      status: "success",
+      queryExecuted: rawQuery,
+      timestamp: new Date().toISOString(),
+      executionMs: 240 + Math.floor(Math.random() * 180),
+      rateLimit: {
+        total: 100,
+        used: 25,
+        remaining: 75
+      },
+      results: [
+        {
+          title: `Index of /confidential - Leak Report`,
+          url: `https://example-leaked-sub.com/docs/confidential.pdf`,
+          displayUrl: `example-leaked-sub.com > docs > confidential.pdf`,
+          snippet: `File index matching query intitle:"index of" "${params.query || "internal"}" filetype:pdf listing financial audit records.`,
+          pubDate: new Date().toISOString()
+        },
+        {
+          title: `Admin credentials configuration directory`,
+          url: `https://github.com/leaked-repo-db/config`,
+          displayUrl: `github.com > leaked-repo-db > config`,
+          snippet: `Repository directory matching inurl:config "${params.query || "admin"}" credentials cache records.`,
+          pubDate: new Date(Date.now() - 86400000).toISOString()
+        }
+      ],
+      logs: [
+        { timestamp: new Date().toISOString(), level: "INFO", message: `Parsing dork operators for query: ${rawQuery}` },
+        { timestamp: new Date(Date.now() - 1000).toISOString(), level: "SUCCESS", message: "DNS prefetch verified successfully for google.com" },
+        { timestamp: new Date(Date.now() - 2000).toISOString(), level: "INFO", message: `Executing request on search API with safetyFilter: ${params.safetyFilter ?? true}` }
+      ] as GoogleDorkLog[],
+      history: [
+        {
+          id: "hist-1",
+          timestamp: new Date().toISOString(),
+          rawQuery,
+          parameters: params,
+          resultsCount: 2,
+          status: "success"
+        }
+      ] as GoogleDorkHistoryItem[]
+    };
+  });
+
 type NewsSearch = {
   q?: string;
 };

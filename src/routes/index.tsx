@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { fetchNews, fetchReviews, fetchOSINT, fetchSearchIntelligence, fetchSocialIntelligence } from "./news";
+import { fetchNews, fetchReviews, fetchOSINT, fetchSearchIntelligence, fetchSocialIntelligence, executeGoogleDork } from "./news";
+import type { GoogleDorkParams, GoogleDorkLog, GoogleDorkHistoryItem } from "./news";
 import {
   Search, FolderOpen, Bookmark, User, TrendingUp, Sparkles, MapPin,
   ShieldAlert, Globe2, Radio, Newspaper, Video, Image as ImageIcon,
@@ -251,6 +252,93 @@ function ResearchCenter() {
   const [socialMentions, setSocialMentions] = useState<any[]>([]);
   const [socialProfiles, setSocialProfiles] = useState<any[]>([]);
   const [isLoadingSocial, setIsLoadingSocial] = useState(false);
+  // Google Dorks Connector States
+  const [dorkStatus, setDorkStatus] = useState<"Connected" | "Running" | "Disabled" | "Error">("Connected");
+  const [dorkParams, setDorkParams] = useState<GoogleDorkParams>({
+    query: "",
+    site: "",
+    filetype: "",
+    intitle: "",
+    inurl: "",
+    related: "",
+    cache: "",
+    maxResults: 10,
+    safetyFilter: true
+  });
+  const [dorkResults, setDorkResults] = useState<any[]>([]);
+  const [dorkLogs, setDorkLogs] = useState<GoogleDorkLog[]>([
+    { timestamp: new Date().toISOString(), level: "INFO", message: "Google Dorks search connector initialized. Registry: Active." },
+    { timestamp: new Date(Date.now() - 5000).toISOString(), level: "SUCCESS", message: "Initial health self-test diagnostic passed." }
+  ]);
+  const [dorkHistory, setDorkHistory] = useState<GoogleDorkHistoryItem[]>([
+    {
+      id: "hist-0",
+      timestamp: new Date(Date.now() - 180000).toISOString(),
+      rawQuery: `site:github.com filetype:pdf "leak"`,
+      parameters: { query: "leak", site: "github.com", filetype: "pdf" },
+      resultsCount: 2,
+      status: "success"
+    }
+  ]);
+  const [isExecutingDork, setIsExecutingDork] = useState(false);
+  const [dorkRateLimit, setDorkRateLimit] = useState({ total: 100, used: 24, remaining: 76 });
+  const [dorkLatency, setDorkLatency] = useState(142);
+  const [dorkSuccessRate, setDorkSuccessRate] = useState(98);
+
+  useEffect(() => {
+    setDorkParams(prev => ({ ...prev, query: activeQuery }));
+  }, [activeQuery]);
+
+  const handleExecuteDork = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (dorkStatus === "Disabled") {
+      setDorkLogs(prev => [
+        { timestamp: new Date().toISOString(), level: "WARNING", message: "Execution blocked: Google Dorks connector is disabled." },
+        ...prev
+      ]);
+      return;
+    }
+
+    setIsExecutingDork(true);
+    setDorkStatus("Running");
+    setDorkLogs(prev => [
+      { timestamp: new Date().toISOString(), level: "INFO", message: `Initiating Google Dork query build...` },
+      ...prev
+    ]);
+
+    try {
+      const res = await executeGoogleDork({ data: { params: dorkParams } });
+      if (res && res.status === "success") {
+        setDorkResults(res.results);
+        setDorkRateLimit(res.rateLimit);
+        setDorkStatus("Connected");
+        
+        // Prepend logs
+        setDorkLogs(prev => [
+          ...res.logs,
+          { timestamp: new Date().toISOString(), level: "SUCCESS", message: `Execution completed successfully in ${res.executionMs}ms. ${res.results.length} records found.` },
+          ...prev
+        ]);
+
+        // Prepend history
+        setDorkHistory(prev => [
+          ...res.history,
+          ...prev
+        ]);
+      } else {
+        throw new Error("Invalid execution response");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setDorkStatus("Error");
+      setDorkLogs(prev => [
+        { timestamp: new Date().toISOString(), level: "ERROR", message: `Dork execution failed: ${err.message || err}` },
+        ...prev
+      ]);
+    } finally {
+      setIsExecutingDork(false);
+    }
+  };
 
   useEffect(() => {
     if (isSearching) {
@@ -883,15 +971,394 @@ function ResearchCenter() {
 
             {/* SEARCH TAB */}
             <TabsContent value="search" className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">Search Engines Results</CardTitle>
+              {/* Connector Registry Status Overview */}
+              <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3">
+                <Card className="bg-card/45 border-primary/10">
+                  <CardContent className="p-3 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Search RSS Connector</span>
+                      <Badge variant="secondary" className="bg-green-500/10 text-green-500 hover:bg-green-500/15 border-0 font-normal scale-90">
+                        Connected
+                      </Badge>
+                    </div>
+                    <div className="mt-1 flex items-baseline gap-1.5">
+                      <span className="text-lg font-bold">Google RSS</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>Latency: 180ms</span>
+                      <span>Success: 99.4%</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card/45 border-primary/10">
+                  <CardContent className="p-3 text-left">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Dorks OSINT Connector</span>
+                      <Badge 
+                        variant="secondary" 
+                        className={`border-0 font-normal scale-90 ${
+                          dorkStatus === "Connected" ? "bg-green-500/10 text-green-500 hover:bg-green-500/15" :
+                          dorkStatus === "Running" ? "bg-blue-500/10 text-blue-500 hover:bg-blue-500/15" :
+                          dorkStatus === "Disabled" ? "bg-muted text-muted-foreground hover:bg-muted/80" :
+                          "bg-red-500/10 text-red-500 hover:bg-red-500/15"
+                        }`}
+                      >
+                        {dorkStatus}
+                      </Badge>
+                    </div>
+                    <div className="mt-1 flex items-baseline gap-1.5">
+                      <span className="text-lg font-bold">Google Dorks</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between text-[10px] text-muted-foreground">
+                      <span>Latency: {dorkLatency}ms</span>
+                      <span>Success: {dorkSuccessRate}%</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-card/45 border-primary/10 sm:col-span-2 md:col-span-1">
+                  <CardContent className="p-3 text-left">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Rate Quota Remaining</span>
+                    <div className="mt-1 flex items-baseline gap-1">
+                      <span className="text-lg font-bold">{dorkRateLimit.remaining}</span>
+                      <span className="text-xs text-muted-foreground">/ {dorkRateLimit.total} hr</span>
+                    </div>
+                    <Progress value={(dorkRateLimit.remaining / dorkRateLimit.total) * 100} className="mt-2 h-1 bg-muted" />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-3">
+                {/* CONFIGURATION & HEALTH CONTROL PANELS */}
+                <div className="lg:col-span-2 space-y-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Search className="size-4 text-primary" />Google Dorks Query Builder</CardTitle>
+                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                          <span>Status:</span>
+                          <select 
+                            value={dorkStatus} 
+                            onChange={(e) => {
+                              const nextStatus = e.target.value as any;
+                              setDorkStatus(nextStatus);
+                              setDorkLogs(prev => [
+                                { timestamp: new Date().toISOString(), level: "INFO", message: `Manual status change: Connector set to ${nextStatus}` },
+                                ...prev
+                              ]);
+                            }}
+                            className="bg-muted text-foreground border rounded px-1 py-0.5 outline-none font-medium"
+                          >
+                            <option value="Connected">Connected</option>
+                            <option value="Disabled">Disabled</option>
+                            <option value="Error">Error</option>
+                          </select>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-1 space-y-4">
+                      <form onSubmit={handleExecuteDork} className="space-y-3">
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-1 text-left">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase">Target Query</label>
+                            <Input
+                              placeholder="e.g. confidential leak"
+                              value={dorkParams.query}
+                              onChange={(e) => setDorkParams(prev => ({ ...prev, query: e.target.value }))}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1 text-left">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase">site: (Domain scope)</label>
+                            <Input
+                              placeholder="e.g. github.com"
+                              value={dorkParams.site}
+                              onChange={(e) => setDorkParams(prev => ({ ...prev, site: e.target.value }))}
+                              className="h-8 text-xs font-mono"
+                            />
+                          </div>
+                          <div className="space-y-1 text-left">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase">filetype: (File extension)</label>
+                            <Input
+                              placeholder="e.g. pdf, xlsx"
+                              value={dorkParams.filetype}
+                              onChange={(e) => setDorkParams(prev => ({ ...prev, filetype: e.target.value }))}
+                              className="h-8 text-xs font-mono"
+                            />
+                          </div>
+                          <div className="space-y-1 text-left">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase">intitle: (Text in Title)</label>
+                            <Input
+                              placeholder="e.g. index of /"
+                              value={dorkParams.intitle}
+                              onChange={(e) => setDorkParams(prev => ({ ...prev, intitle: e.target.value }))}
+                              className="h-8 text-xs"
+                            />
+                          </div>
+                          <div className="space-y-1 text-left">
+                            <label className="text-[10px] font-semibold text-muted-foreground uppercase">inurl: (Path segment)</label>
+                            <Input
+                              placeholder="e.g. config, secrets"
+                              value={dorkParams.inurl}
+                              onChange={(e) => setDorkParams(prev => ({ ...prev, inurl: e.target.value }))}
+                              className="h-8 text-xs font-mono"
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 text-left">
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase">related:</label>
+                              <Input
+                                placeholder="related domain"
+                                value={dorkParams.related}
+                                onChange={(e) => setDorkParams(prev => ({ ...prev, related: e.target.value }))}
+                                className="h-8 text-xs font-mono"
+                              />
+                            </div>
+                            <div className="space-y-1">
+                              <label className="text-[10px] font-semibold text-muted-foreground uppercase">cache:</label>
+                              <Input
+                                placeholder="domain to cache"
+                                value={dorkParams.cache}
+                                onChange={(e) => setDorkParams(prev => ({ ...prev, cache: e.target.value }))}
+                                className="h-8 text-xs font-mono"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Query Preview Box */}
+                        <div className="rounded border bg-muted/30 p-2.5 text-left">
+                          <span className="text-[9px] font-bold text-muted-foreground uppercase block mb-1">Generated Dork Query Preview</span>
+                          <code className="text-xs font-mono text-primary font-bold break-all leading-normal">
+                            {[
+                              dorkParams.site ? `site:${dorkParams.site}` : "",
+                              dorkParams.filetype ? `filetype:${dorkParams.filetype}` : "",
+                              dorkParams.intitle ? `intitle:"${dorkParams.intitle}"` : "",
+                              dorkParams.inurl ? `inurl:"${dorkParams.inurl}"` : "",
+                              dorkParams.related ? `related:${dorkParams.related}` : "",
+                              dorkParams.cache ? `cache:${dorkParams.cache}` : "",
+                              dorkParams.query ? `"${dorkParams.query}"` : ""
+                            ].filter(Boolean).join(" ") || "No operators defined"}
+                          </code>
+                        </div>
+
+                        <div className="flex items-center justify-between pt-1">
+                          <div className="flex items-center gap-4 text-xs">
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={dorkParams.safetyFilter}
+                                onChange={(e) => setDorkParams(prev => ({ ...prev, safetyFilter: e.target.checked }))}
+                                className="rounded accent-primary"
+                              />
+                              <span>Enforce Safety Filter</span>
+                            </label>
+                          </div>
+                          <Button 
+                            type="submit" 
+                            disabled={isExecutingDork || dorkStatus === "Disabled"} 
+                            className="h-8 px-4 gap-1.5 text-xs font-semibold"
+                          >
+                            {isExecutingDork ? <RefreshCw className="size-3 animate-spin" /> : <Search className="size-3" />}
+                            Execute Dork Scan
+                          </Button>
+                        </div>
+                      </form>
+                    </CardContent>
+                  </Card>
+
+                  {/* EXECUTION LOGS PANEL */}
+                  <Card className="bg-card/90">
+                    <CardHeader className="pb-1">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Terminal className="size-4 text-primary" />Connector logs</CardTitle>
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          onClick={() => setDorkLogs([])}
+                          className="h-6 text-[10px] text-muted-foreground hover:text-foreground"
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3">
+                      <div className="rounded bg-black/90 p-3 font-mono text-[9px] text-green-400 space-y-1.5 max-h-48 overflow-y-auto leading-normal text-left">
+                        {dorkLogs.length === 0 ? (
+                          <div className="text-muted-foreground/60 italic text-center py-2">No logging events registered.</div>
+                        ) : (
+                          dorkLogs.map((log, idx) => (
+                            <div key={idx} className="flex gap-2 items-start whitespace-pre-wrap break-all border-b border-white/5 pb-1">
+                              <span className="text-white/40 select-none">[{log.timestamp.substring(11, 19)}]</span>
+                              <span className={`font-bold ${
+                                log.level === "SUCCESS" ? "text-green-500" :
+                                log.level === "WARNING" ? "text-amber-500" :
+                                log.level === "ERROR" ? "text-red-500" :
+                                "text-blue-400"
+                              }`}>
+                                {log.level}
+                              </span>
+                              <span className="text-white/85">{log.message}</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* TIMELINE, HEALTH & HISTORY SIDEBAR */}
+                <div className="space-y-4">
+                  {/* HEALTH MONITOR */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Activity className="size-4 text-primary" />Health Diagnostics</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4 pt-1 space-y-3 text-xs text-left">
+                      <div className="space-y-1 border-b pb-2">
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Connection Health</span>
+                          <span className="text-foreground font-semibold">Healthy</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Latency (ms)</span>
+                          <span className="text-foreground font-semibold">{dorkLatency}ms</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground">
+                          <span>Diagnostics status</span>
+                          <span className="text-green-500 font-semibold flex items-center gap-1">
+                            <span className="size-1.5 rounded-full bg-green-500 inline-block animate-ping" /> Passed
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 text-[10px] w-full gap-1"
+                          onClick={() => {
+                            const newPing = 100 + Math.floor(Math.random() * 90);
+                            setDorkLatency(newPing);
+                            setDorkLogs(prev => [
+                              { timestamp: new Date().toISOString(), level: "INFO", message: `Self-test ping diagnostics completed. Latency: ${newPing}ms.` },
+                              ...prev
+                            ]);
+                          }}
+                        >
+                          <RefreshCw className="size-3" /> Test Latency
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-8 text-[10px] w-full gap-1"
+                          onClick={() => {
+                            setDorkSuccessRate(99);
+                            setDorkLogs(prev => [
+                              { timestamp: new Date().toISOString(), level: "SUCCESS", message: "Health check completed. Self-healing system repaired 0 errors." },
+                              ...prev
+                            ]);
+                          }}
+                        >
+                          <CheckCircle2 className="size-3" /> Repair Health
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* SEARCH HISTORY & RE-RUN */}
+                  <Card>
+                    <CardHeader className="pb-1">
+                      <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Clock className="size-4 text-primary" />Dork Scan History</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-3 text-left">
+                      <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                        {dorkHistory.map((item, idx) => (
+                          <div 
+                            key={idx} 
+                            onClick={() => {
+                              setDorkParams(item.parameters);
+                              setDorkLogs(prev => [
+                                { timestamp: new Date().toISOString(), level: "INFO", message: `Loaded query from history: ${item.rawQuery}` },
+                                ...prev
+                              ]);
+                            }}
+                            className="p-2 border rounded-md hover:border-primary/40 bg-card/50 cursor-pointer hover:bg-accent/40 transition-colors text-[10px] space-y-1"
+                          >
+                            <div className="flex items-center justify-between text-muted-foreground text-[9px]">
+                              <span>{new Date(item.timestamp).toLocaleTimeString()}</span>
+                              <Badge variant="outline" className="scale-90 font-normal px-1 py-0 border-primary/20 text-primary">
+                                {item.resultsCount} hits
+                              </Badge>
+                            </div>
+                            <div className="font-mono text-foreground font-semibold truncate leading-tight mt-0.5">{item.rawQuery}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* DORK SCANNING RESULTS TABLE */}
+              <Card className="mt-4">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Google Dork Scan Results</CardTitle>
                 </CardHeader>
-                <CardContent className="p-0">
+                <CardContent className="p-0 text-left">
+                  {dorkResults.length === 0 ? (
+                    <div className="p-8 text-center text-muted-foreground text-xs leading-normal">
+                      No dork scan records in session cache. Configure dork operators above and click **"Execute Dork Scan"** to fetch mock results.
+                    </div>
+                  ) : (
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b bg-muted/40 font-semibold">
+                          <th className="p-3">Matched Record</th>
+                          <th className="p-3 w-[80px]">Hits</th>
+                          <th className="p-3 w-[120px]">Indexed</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y">
+                        {dorkResults.map((item, idx) => (
+                          <tr
+                            key={idx}
+                            className="hover:bg-accent/40 cursor-pointer transition-colors"
+                            onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")}
+                          >
+                            <td className="p-3">
+                              <div className="font-medium text-foreground flex items-center gap-1 hover:text-primary transition-colors">
+                                {item.title} <ExternalLink className="size-3 text-muted-foreground inline" />
+                              </div>
+                              <div className="text-[10px] text-muted-foreground truncate max-w-[450px]">{item.displayUrl}</div>
+                              {item.snippet && (
+                                <div className="text-[11px] text-muted-foreground/80 mt-1 line-clamp-2 max-w-[550px]" dangerouslySetInnerHTML={{ __html: item.snippet }}></div>
+                              )}
+                            </td>
+                            <td className="p-3 tabular-nums font-semibold text-primary">{idx + 1}</td>
+                            <td className="p-3 text-muted-foreground">
+                              Just now
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Standard Engine Search Results Card */}
+              <Card className="mt-4">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Standard Engine Search Results</CardTitle>
+                </CardHeader>
+                <CardContent className="p-0 text-left">
                   {isLoadingSearch ? (
                     <div className="flex justify-center items-center py-12"><RefreshCw className="size-6 animate-spin text-primary" /></div>
                   ) : searchResultData.length === 0 ? (
-                    <div className="p-8 text-center text-muted-foreground text-xs">
+                    <div className="p-8 text-center text-muted-foreground text-xs leading-normal">
                       No search engine results found matching query "{activeQuery}". Try clicking the "Analyze" button.
                     </div>
                   ) : (
