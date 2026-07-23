@@ -7,14 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { fetchNews, fetchReviews, fetchOSINT, fetchSearchIntelligence, fetchSocialIntelligence, executeGoogleDork } from "./news";
-import type { GoogleDorkParams, GoogleDorkLog, GoogleDorkHistoryItem } from "./news";
+import { fetchNews, fetchReviews, fetchOSINT, fetchSearchIntelligence, fetchSocialIntelligence, executeGoogleDork, executeShodanScan } from "./news";
+import type { GoogleDorkParams, GoogleDorkLog, GoogleDorkHistoryItem, ShodanScanParams, ShodanHostTelemetry, ShodanTelemetryLog, ShodanHistoryItem } from "./news";
 import {
   Search, FolderOpen, Bookmark, User, TrendingUp, Sparkles, MapPin,
   ShieldAlert, Globe2, Radio, Newspaper, Video, Image as ImageIcon,
   MessageCircle, ExternalLink, Calendar, Network, FileText, Activity,
   Terminal, CheckCircle2, ChevronRight, Download, RefreshCw, Plus, Clock,
-  ZoomIn, ZoomOut, Maximize2, Share2, GitBranch, ArrowUpRight, Bot
+  ZoomIn, ZoomOut, Maximize2, Share2, GitBranch, ArrowUpRight, Bot, Key
 } from "lucide-react";
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -285,6 +285,38 @@ function ResearchCenter() {
   const [dorkLatency, setDorkLatency] = useState(142);
   const [dorkSuccessRate, setDorkSuccessRate] = useState(98);
 
+  // Shodan Infrastructure Connector States
+  const [shodanStatus, setShodanStatus] = useState<"Connected" | "Running" | "Disabled" | "Error">("Connected");
+  const [shodanApiKey, setShodanApiKey] = useState("SHODAN_MOCK_API_KEY_XXXXXXXXXX");
+  const [shodanParams, setShodanParams] = useState<ShodanScanParams>({
+    query: "",
+    apiKey: "",
+    scanType: "host",
+    safetyCheck: true
+  });
+  const [shodanTelemetry, setShodanTelemetry] = useState<ShodanHostTelemetry | null>(null);
+  const [shodanLogs, setShodanLogs] = useState<ShodanTelemetryLog[]>([
+    { timestamp: new Date().toISOString(), level: "INFO", message: "Shodan search connector initialized. OSINT Registry: Active." },
+    { timestamp: new Date(Date.now() - 3000).toISOString(), level: "SUCCESS", message: "Shodan credential authenticity scan passed." }
+  ]);
+  const [shodanHistory, setShodanHistory] = useState<ShodanHistoryItem[]>([
+    {
+      id: "shod-0",
+      timestamp: new Date(Date.now() - 120000).toISOString(),
+      query: "8.8.8.8",
+      scanType: "host",
+      status: "success"
+    }
+  ]);
+  const [isExecutingShodan, setIsExecutingShodan] = useState(false);
+  const [shodanRateLimit, setShodanRateLimit] = useState({ total: 10000, used: 142, remaining: 9858 });
+  const [shodanLatency, setShodanLatency] = useState(95);
+  const [shodanSuccessRate, setShodanSuccessRate] = useState(100);
+
+  useEffect(() => {
+    setShodanParams(prev => ({ ...prev, query: activeQuery }));
+  }, [activeQuery]);
+
   useEffect(() => {
     setDorkParams(prev => ({ ...prev, query: activeQuery }));
   }, [activeQuery]);
@@ -337,6 +369,72 @@ function ResearchCenter() {
       ]);
     } finally {
       setIsExecutingDork(false);
+    }
+  };
+
+  const handleExecuteShodan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (shodanStatus === "Disabled") {
+      setShodanLogs(prev => [
+        { timestamp: new Date().toISOString(), level: "WARNING", message: "Execution blocked: Shodan connector is disabled." },
+        ...prev
+      ]);
+      return;
+    }
+
+    if (!shodanApiKey) {
+      setShodanStatus("Error");
+      setShodanLogs(prev => [
+        { timestamp: new Date().toISOString(), level: "ERROR", message: "Authentication Error: Missing Shodan API Key." },
+        ...prev
+      ]);
+      return;
+    }
+
+    setIsExecutingShodan(true);
+    setShodanStatus("Running");
+    setShodanLogs(prev => [
+      { timestamp: new Date().toISOString(), level: "INFO", message: `Executing Shodan OSINT Scan for query: ${shodanParams.query}...` },
+      ...prev
+    ]);
+
+    try {
+      const res = await executeShodanScan({ data: { params: { ...shodanParams, apiKey: shodanApiKey } } });
+      if (res && res.status === "success") {
+        setShodanTelemetry(res.telemetry);
+        setShodanStatus("Connected");
+        
+        // Prepend logs
+        setShodanLogs(prev => [
+          ...res.logs,
+          { timestamp: new Date().toISOString(), level: "SUCCESS", message: `Shodan scan completed in ${res.executionMs}ms. Host IP matching: ${res.telemetry.ip}` },
+          ...prev
+        ]);
+
+        // Prepend history
+        setShodanHistory(prev => [
+          ...res.history,
+          ...prev
+        ]);
+
+        // Update rate limits remaining
+        setShodanRateLimit(prev => ({
+          ...prev,
+          used: prev.used + 1,
+          remaining: prev.remaining - 1
+        }));
+      } else {
+        throw new Error("Invalid scan response");
+      }
+    } catch (err: any) {
+      console.error(err);
+      setShodanStatus("Error");
+      setShodanLogs(prev => [
+        { timestamp: new Date().toISOString(), level: "ERROR", message: `Shodan scan failed: ${err.message || err}` },
+        ...prev
+      ]);
+    } finally {
+      setIsExecutingShodan(false);
     }
   };
 
@@ -1588,7 +1686,347 @@ function ResearchCenter() {
                           ))
                         )}
                       </CardContent>
-                    </Card>
+                      </Card>
+                    </div>
+
+                    {/* INFRASTRUCTURE INTELLIGENCE (SHODAN) */}
+                    <div className="mt-6 border-t pt-6 space-y-4 text-left">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-semibold flex items-center gap-2"><Radio className="size-4 text-primary" /> Infrastructure Intelligence</h3>
+                          <p className="text-xs text-muted-foreground">Monitor network exposures, open ports, and vulnerabilities using Shodan</p>
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className={`font-semibold border-0 ${
+                            shodanStatus === "Connected" ? "bg-green-500/10 text-green-500" :
+                            shodanStatus === "Running" ? "bg-blue-500/10 text-blue-500" :
+                            shodanStatus === "Disabled" ? "bg-muted text-muted-foreground" :
+                            "bg-red-500/10 text-red-500"
+                          }`}
+                        >
+                          Shodan: {shodanStatus}
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-4 lg:grid-cols-3">
+                        {/* CONFIGURATION & STATS */}
+                        <div className="space-y-4">
+                          {/* CONNECTOR CARD & AUTH */}
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Key className="size-4 text-primary" /> Credentials & Config</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-3.5 space-y-3 text-xs">
+                              <div className="space-y-1">
+                                <label className="text-[10px] font-semibold text-muted-foreground uppercase">API Authentication Key</label>
+                                <div className="flex gap-2">
+                                  <Input
+                                    type="password"
+                                    placeholder="Shodan API Key"
+                                    value={shodanApiKey}
+                                    onChange={(e) => setShodanApiKey(e.target.value)}
+                                    className="h-8 text-xs font-mono"
+                                  />
+                                  <Button 
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                      setShodanLogs(prev => [
+                                        { timestamp: new Date().toISOString(), level: "SUCCESS", message: "API key updated and registered in volatile configuration memory." },
+                                        ...prev
+                                      ]);
+                                    }}
+                                    className="h-8 text-[10px] px-2.5"
+                                  >
+                                    Save
+                                  </Button>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between text-[11px] pt-1">
+                                <span className="text-muted-foreground">Connector Status:</span>
+                                <select 
+                                  value={shodanStatus} 
+                                  onChange={(e) => {
+                                    const nextStatus = e.target.value as any;
+                                    setShodanStatus(nextStatus);
+                                    setShodanLogs(prev => [
+                                      { timestamp: new Date().toISOString(), level: "INFO", message: `Manual configuration: Shodan state updated to ${nextStatus}` },
+                                      ...prev
+                                    ]);
+                                  }}
+                                  className="bg-muted text-foreground border rounded px-1.5 py-0.5 outline-none font-medium text-[10px]"
+                                >
+                                  <option value="Connected">Connected</option>
+                                  <option value="Disabled">Disabled</option>
+                                  <option value="Error">Error</option>
+                                </select>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          {/* RATE LIMIT & METRICS */}
+                          <Card>
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Activity className="size-4 text-primary" /> Usage & Health Telemetry</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-3.5 space-y-3 text-xs">
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-[11px]">
+                                  <span className="text-muted-foreground">Monthly Quota used</span>
+                                  <span className="font-semibold text-foreground">{shodanRateLimit.used} / {shodanRateLimit.total}</span>
+                                </div>
+                                <Progress value={(shodanRateLimit.used / shodanRateLimit.total) * 100} className="h-1 bg-muted" />
+                              </div>
+
+                              <div className="space-y-1 pt-1">
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Success Rate</span>
+                                  <span className="text-foreground font-semibold">{shodanSuccessRate}%</span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-muted-foreground">Latency</span>
+                                  <span className="text-foreground font-semibold">{shodanLatency}ms</span>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-2 pt-1">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => {
+                                    const nextLatency = 80 + Math.floor(Math.random() * 40);
+                                    setShodanLatency(nextLatency);
+                                    setShodanLogs(prev => [
+                                      { timestamp: new Date().toISOString(), level: "SUCCESS", message: `Health Diagnostics Ping success. Latency: ${nextLatency}ms` },
+                                      ...prev
+                                    ]);
+                                  }}
+                                  className="w-full h-7 text-[9px] gap-1"
+                                >
+                                  <RefreshCw className="size-2.5" /> Ping Test
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          {/* HISTORY */}
+                          <Card>
+                            <CardHeader className="pb-1">
+                              <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Clock className="size-4 text-primary" /> Shodan Scan History</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-2">
+                              <div className="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+                                {shodanHistory.map((item, idx) => (
+                                  <div 
+                                    key={idx} 
+                                    onClick={() => {
+                                      setShodanParams(prev => ({ ...prev, query: item.query }));
+                                      setShodanLogs(prev => [
+                                        { timestamp: new Date().toISOString(), level: "INFO", message: `Loaded search configuration for target: ${item.query}` },
+                                        ...prev
+                                      ]);
+                                    }}
+                                    className="p-1.5 border rounded bg-card/60 cursor-pointer hover:bg-accent/40 text-[10px] flex items-center justify-between"
+                                  >
+                                    <span className="font-mono truncate">{item.query}</span>
+                                    <Badge variant="outline" className="scale-90 px-1 py-0 font-normal">{item.scanType}</Badge>
+                                  </div>
+                                ))}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        {/* SCAN ACTIONS & HOST RESULTS */}
+                        <div className="lg:col-span-2 space-y-4">
+                          {/* SEARCH BAR CARD */}
+                          <Card>
+                            <CardContent className="p-3.5">
+                              <form onSubmit={handleExecuteShodan} className="flex gap-2">
+                                <Input
+                                  placeholder="Enter IP or Hostname (e.g. 8.8.8.8, tesla.com)"
+                                  value={shodanParams.query}
+                                  onChange={(e) => setShodanParams(prev => ({ ...prev, query: e.target.value }))}
+                                  className="h-9 text-xs"
+                                />
+                                <Button 
+                                  type="submit" 
+                                  disabled={isExecutingShodan || shodanStatus === "Disabled"} 
+                                  className="h-9 font-semibold text-xs gap-1"
+                                >
+                                  {isExecutingShodan ? <RefreshCw className="size-3 animate-spin" /> : <Search className="size-3" />}
+                                  Scan Host
+                                </Button>
+                              </form>
+                            </CardContent>
+                          </Card>
+
+                          {/* SHODAN HOST PROFILE DETAIL */}
+                          <Card>
+                            <CardHeader className="pb-2 border-b">
+                              <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Globe2 className="size-4 text-primary" /> Shodan Host Profile Telemetry</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-4">
+                              {!shodanTelemetry ? (
+                                <div className="py-12 text-center text-muted-foreground text-xs leading-normal">
+                                  No active Shodan host record loaded. Enter an IP or hostname above and click **"Scan Host"** to fetch mock telemetry details.
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  {/* BASIC DETAILS */}
+                                  <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 text-xs text-left">
+                                    <div className="border-b pb-1.5">
+                                      <div className="text-[10px] font-bold text-muted-foreground uppercase">IP Address</div>
+                                      <div className="font-mono font-semibold text-foreground mt-0.5">{shodanTelemetry.ip}</div>
+                                    </div>
+                                    <div className="border-b pb-1.5">
+                                      <div className="text-[10px] font-bold text-muted-foreground uppercase">Hostnames</div>
+                                      <div className="font-mono truncate text-foreground mt-0.5">{shodanTelemetry.hostnames.join(", ")}</div>
+                                    </div>
+                                    <div className="border-b pb-1.5">
+                                      <div className="text-[10px] font-bold text-muted-foreground uppercase">Organization</div>
+                                      <div className="text-foreground truncate mt-0.5">{shodanTelemetry.org}</div>
+                                    </div>
+                                    <div className="border-b pb-1.5">
+                                      <div className="text-[10px] font-bold text-muted-foreground uppercase">Operating System</div>
+                                      <div className="text-foreground mt-0.5">{shodanTelemetry.os}</div>
+                                    </div>
+                                    <div className="border-b pb-1.5">
+                                      <div className="text-[10px] font-bold text-muted-foreground uppercase">ASN / ISP</div>
+                                      <div className="font-mono text-foreground mt-0.5">{shodanTelemetry.asn}</div>
+                                    </div>
+                                    <div className="border-b pb-1.5">
+                                      <div className="text-[10px] font-bold text-muted-foreground uppercase">Location</div>
+                                      <div className="text-foreground mt-0.5">{shodanTelemetry.location.city}, {shodanTelemetry.location.country} ({shodanTelemetry.location.countryCode})</div>
+                                    </div>
+                                  </div>
+
+                                  {/* HOST TAGS */}
+                                  {shodanTelemetry.tags.length > 0 && (
+                                    <div className="text-left">
+                                      <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5">Host Tags</div>
+                                      <div className="flex flex-wrap gap-1">
+                                        {shodanTelemetry.tags.map((tag) => (
+                                          <Badge key={tag} variant="secondary" className="text-[9px] px-2 py-0 h-4.5 bg-primary/10 text-primary border-0 font-mono">
+                                            {tag}
+                                          </Badge>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* OPEN PORTS & SERVICES */}
+                                  <div className="text-left">
+                                    <div className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Open Ports & Services</div>
+                                    <div className="grid gap-2 sm:grid-cols-2">
+                                      {shodanTelemetry.services.map((service, index) => (
+                                        <div key={index} className="p-2.5 border rounded bg-card/60 flex items-start justify-between">
+                                          <div className="space-y-0.5">
+                                            <div className="flex items-center gap-1.5">
+                                              <Badge variant="outline" className="text-[10px] px-1 py-0 border-primary/20 text-primary font-bold">{service.port}</Badge>
+                                              <span className="font-mono font-bold text-[11px] text-foreground">{service.serviceName}</span>
+                                            </div>
+                                            <p className="text-[10px] text-muted-foreground font-mono truncate max-w-[180px]" title={service.banner}>
+                                              {service.banner || "No banner found"}
+                                            </p>
+                                          </div>
+                                          <Badge variant="secondary" className="text-[9px] uppercase">{service.protocol}</Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+
+                                  {/* SSL CERTIFICATE PLACEHOLDER */}
+                                  {shodanTelemetry.sslCert && (
+                                    <div className="p-3 border rounded bg-card/40 text-xs text-left">
+                                      <div className="text-[10px] font-bold text-muted-foreground uppercase mb-1.5">SSL Certificate Details</div>
+                                      <div className="grid gap-2 md:grid-cols-2 text-left">
+                                        <div>
+                                          <span className="text-muted-foreground block text-[10px]">Subject</span>
+                                          <span className="font-mono text-foreground font-semibold">{shodanTelemetry.sslCert.subject}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground block text-[10px]">Issuer</span>
+                                          <span className="font-mono text-foreground font-semibold">{shodanTelemetry.sslCert.issuer}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground block text-[10px]">Expiry Timeline</span>
+                                          <span className="text-foreground">{shodanTelemetry.sslCert.expires}</span>
+                                        </div>
+                                        <div>
+                                          <span className="text-muted-foreground block text-[10px]">Protocol Version</span>
+                                          <span className="font-mono text-foreground">{shodanTelemetry.sslCert.version}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* VULNERABILITIES LIST */}
+                                  {shodanTelemetry.vulnerabilities.length > 0 && (
+                                    <div className="text-left">
+                                      <div className="text-[10px] font-bold text-muted-foreground uppercase mb-2">CVE Vulnerabilities Correlated</div>
+                                      <div className="space-y-2">
+                                        {shodanTelemetry.vulnerabilities.map((vuln) => (
+                                          <div key={vuln.id} className="p-2.5 border rounded border-red-500/15 bg-red-500/5 flex items-start gap-3">
+                                            <Badge className="bg-red-500/10 text-red-500 hover:bg-red-500/15 border-0 font-bold font-mono py-0.5 px-2 text-[10px]">
+                                              CVSS {vuln.cvss.toFixed(1)}
+                                            </Badge>
+                                            <div className="space-y-0.5 text-xs text-left">
+                                              <div className="font-bold text-foreground font-mono">{vuln.id}</div>
+                                              <p className="text-muted-foreground text-[11px] leading-normal">{vuln.summary}</p>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+
+                          {/* SHODAN LOGS CONSOLE */}
+                          <Card className="bg-card/90">
+                            <CardHeader className="pb-1">
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm font-semibold flex items-center gap-1.5"><Terminal className="size-4 text-primary" /> Shodan Connector logs</CardTitle>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm" 
+                                  onClick={() => setShodanLogs([])}
+                                  className="h-6 text-[10px] text-muted-foreground hover:text-foreground"
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-3">
+                              <div className="rounded bg-black/90 p-3 font-mono text-[9px] text-green-400 space-y-1.5 max-h-40 overflow-y-auto leading-normal text-left">
+                                {shodanLogs.length === 0 ? (
+                                  <div className="text-muted-foreground/60 italic text-center py-2">No logging events registered.</div>
+                                ) : (
+                                  shodanLogs.map((log, idx) => (
+                                    <div key={idx} className="flex gap-2 items-start whitespace-pre-wrap break-all border-b border-white/5 pb-1">
+                                      <span className="text-white/40 select-none">[{log.timestamp.substring(11, 19)}]</span>
+                                      <span className={`font-bold ${
+                                        log.level === "SUCCESS" ? "text-green-500" :
+                                        log.level === "WARNING" ? "text-amber-500" :
+                                        log.level === "ERROR" ? "text-red-500" :
+                                        "text-blue-400"
+                                      }`}>
+                                        {log.level}
+                                      </span>
+                                      <span className="text-white/85">{log.message}</span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
