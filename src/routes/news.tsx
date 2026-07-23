@@ -1507,6 +1507,28 @@ export interface GoogleDorkHistoryItem {
   status: "success" | "error";
 }
 
+// SpiderFoot OSINT Modules Connector Architecture & Type Definitions
+export interface SpiderfootModuleConfig {
+  moduleId: string;
+  enabled: boolean;
+  apiKey?: string;
+}
+
+export interface SpiderfootScanParams {
+  query: string;
+  selectedModules: string[]; // e.g. ["sfp_whois", "sfp_dns"]
+  moduleConfigs?: SpiderfootModuleConfig[];
+  runTelemetrySelfTest?: boolean;
+}
+
+export interface SpiderfootModuleResultItem {
+  moduleName: string;
+  dataType: string; // WHOIS, DNS, Email, Subdomain, GitHub, Leaks, Certificate, IP, Business, ThreatIntel
+  source: string;
+  targetValue: string;
+  confidence: number;
+}
+
 /*
 ================================================================================
 DATABASE SCHEMA PLACEHOLDERS (Future Prisma / SQL Integration)
@@ -1839,10 +1861,344 @@ export const executeShodanScan = createServerFn({ method: "POST" })
     };
   });
 
+export const executeSpiderfootScan = createServerFn({ method: "POST" })
+  .validator((data: { params: SpiderfootScanParams } | undefined) => data)
+  .handler(async ({ data }) => {
+    const params = data?.params;
+    if (!params) throw new Error("Missing parameters for SpiderFoot scan execution");
+
+    console.log(
+      `[SpiderFoot] Stub executing scan for query: ${params.query} with modules:`,
+      params.selectedModules,
+    );
+
+    const target = params.query;
+    const isDomain = target.includes(".") && !target.includes("@");
+    const isEmail = target.includes("@");
+
+    const results: SpiderfootModuleResultItem[] = [];
+    const logs: {
+      timestamp: string;
+      level: "INFO" | "WARNING" | "ERROR" | "SUCCESS";
+      message: string;
+    }[] = [
+      {
+        timestamp: new Date().toISOString(),
+        level: "INFO",
+        message: `SpiderFoot orchestration controller triggered for target: ${target}`,
+      },
+      {
+        timestamp: new Date(Date.now() + 100).toISOString(),
+        level: "INFO",
+        message: `Loading ${params.selectedModules.length} selected module plugins...`,
+      },
+    ];
+
+    // WHOIS module simulation
+    if (params.selectedModules.includes("sfp_whois")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 200).toISOString(),
+        level: "INFO",
+        message: "[sfp_whois] Querying registrar server whois.iana.org...",
+      });
+      results.push({
+        moduleName: "sfp_whois",
+        dataType: "WHOIS",
+        source: "WHOIS Registry",
+        targetValue: `Registrar: GoDaddy Inc. (Created: 2012-05-18, Expiry: 2028-05-18, Status: active)`,
+        confidence: 1.0,
+      });
+      logs.push({
+        timestamp: new Date(Date.now() + 300).toISOString(),
+        level: "SUCCESS",
+        message: "[sfp_whois] Finished WHOIS extraction: 1 record found.",
+      });
+    }
+
+    // DNS module simulation
+    if (params.selectedModules.includes("sfp_dns")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 400).toISOString(),
+        level: "INFO",
+        message: "[sfp_dns] Fetching nameservers and checking AXFR zone transfers...",
+      });
+      results.push(
+        {
+          moduleName: "sfp_dns",
+          dataType: "DNS",
+          source: "DNS Lookup",
+          targetValue: "A Record -> 104.244.42.1 (TTL: 3600)",
+          confidence: 1.0,
+        },
+        {
+          moduleName: "sfp_dns",
+          dataType: "DNS",
+          source: "DNS Lookup",
+          targetValue: "MX Record -> mail.protonmail.ch (Priority: 10)",
+          confidence: 0.95,
+        },
+      );
+      logs.push({
+        timestamp: new Date(Date.now() + 500).toISOString(),
+        level: "SUCCESS",
+        message: "[sfp_dns] Finished DNS checks: 2 records found.",
+      });
+    }
+
+    // Emails module simulation
+    if (params.selectedModules.includes("sfp_emails")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 600).toISOString(),
+        level: "INFO",
+        message: "[sfp_emails] Crawling common open endpoints and metadata tables...",
+      });
+      const coreName = target.split(".")[0] || "admin";
+      results.push(
+        {
+          moduleName: "sfp_emails",
+          dataType: "Email",
+          source: "Page Scrape",
+          targetValue: `security@${isDomain ? target : "sentinel.ai"}`,
+          confidence: 0.9,
+        },
+        {
+          moduleName: "sfp_emails",
+          dataType: "Email",
+          source: "Metadata extract",
+          targetValue: `support@${isDomain ? target : "sentinel.ai"}`,
+          confidence: 0.85,
+        },
+      );
+      logs.push({
+        timestamp: new Date(Date.now() + 700).toISOString(),
+        level: "SUCCESS",
+        message: "[sfp_emails] Finished email harvesting: 2 records found.",
+      });
+    }
+
+    // Subdomains module simulation
+    if (params.selectedModules.includes("sfp_subdomains")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 800).toISOString(),
+        level: "INFO",
+        message: "[sfp_subdomains] Running dictionary subdomain brute-force lookup...",
+      });
+      results.push(
+        {
+          moduleName: "sfp_subdomains",
+          dataType: "Subdomain",
+          source: "Subdomain bruteforce",
+          targetValue: `vpn.${isDomain ? target : "sentinel.ai"}`,
+          confidence: 1.0,
+        },
+        {
+          moduleName: "sfp_subdomains",
+          dataType: "Subdomain",
+          source: "Subdomain bruteforce",
+          targetValue: `api.${isDomain ? target : "sentinel.ai"}`,
+          confidence: 1.0,
+        },
+      );
+      logs.push({
+        timestamp: new Date(Date.now() + 900).toISOString(),
+        level: "SUCCESS",
+        message: "[sfp_subdomains] Finished subdomain checks: 2 records found.",
+      });
+    }
+
+    // GitHub module simulation
+    if (params.selectedModules.includes("sfp_github")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 1000).toISOString(),
+        level: "INFO",
+        message: "[sfp_github] Authenticating with GitHub API and searching target files...",
+      });
+      results.push({
+        moduleName: "sfp_github",
+        dataType: "GitHub",
+        source: "GitHub API Search",
+        targetValue: "Repository found: avinashbayya/sentinel-integration-scripts",
+        confidence: 0.9,
+      });
+      logs.push({
+        timestamp: new Date(Date.now() + 1100).toISOString(),
+        level: "SUCCESS",
+        message: "[sfp_github] Finished GitHub scanning: 1 repository matched.",
+      });
+    }
+
+    // Leaks module simulation
+    if (params.selectedModules.includes("sfp_leaks")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 1200).toISOString(),
+        level: "INFO",
+        message: "[sfp_leaks] Querying HaveIBeenPwned and paste-site databases...",
+      });
+      results.push({
+        moduleName: "sfp_leaks",
+        dataType: "Leaks",
+        source: "Breach Compilation Database",
+        targetValue: `Exposed password hash found for admin@${isDomain ? target : "sentinel.ai"} (2024-PastebinDump)`,
+        confidence: 0.88,
+      });
+      logs.push({
+        timestamp: new Date(Date.now() + 1300).toISOString(),
+        level: "WARNING",
+        message: "[sfp_leaks] Leak check finished: 1 breach match detected!",
+      });
+    }
+
+    // Certificates module simulation
+    if (params.selectedModules.includes("sfp_certificates")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 1400).toISOString(),
+        level: "INFO",
+        message: "[sfp_certificates] Connecting to crt.sh certificate logs...",
+      });
+      results.push({
+        moduleName: "sfp_certificates",
+        dataType: "Certificate",
+        source: "Certificate Transparency Logs",
+        targetValue: `SSL Cert (Issuer: Let's Encrypt, Valid: 2026-06-01 to 2026-09-01)`,
+        confidence: 1.0,
+      });
+      logs.push({
+        timestamp: new Date(Date.now() + 1500).toISOString(),
+        level: "SUCCESS",
+        message: "[sfp_certificates] Finished SSL certificate checks.",
+      });
+    }
+
+    // IP Intelligence module simulation
+    if (params.selectedModules.includes("sfp_ip_intel")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 1600).toISOString(),
+        level: "INFO",
+        message: "[sfp_ip_intel] Fetching IP reputation, geolocation and ASN bindings...",
+      });
+      results.push(
+        {
+          moduleName: "sfp_ip_intel",
+          dataType: "IP",
+          source: "GeoIP ASN database",
+          targetValue: "ASN: AS13335 (Cloudflare, Inc.)",
+          confidence: 1.0,
+        },
+        {
+          moduleName: "sfp_ip_intel",
+          dataType: "IP",
+          source: "MaxMind Location",
+          targetValue: "Location: San Francisco, California, US",
+          confidence: 0.9,
+        },
+      );
+      logs.push({
+        timestamp: new Date(Date.now() + 1700).toISOString(),
+        level: "SUCCESS",
+        message: "[sfp_ip_intel] Finished IP checks: 2 records resolved.",
+      });
+    }
+
+    // Business Records module simulation
+    if (params.selectedModules.includes("sfp_business")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 1800).toISOString(),
+        level: "INFO",
+        message: "[sfp_business] Scrutinizing commercial indexes and corporate register files...",
+      });
+      results.push({
+        moduleName: "sfp_business",
+        dataType: "Business",
+        source: "OpenCorporates Search",
+        targetValue: "Company Number: US-CA-81829910 (Status: Active)",
+        confidence: 0.95,
+      });
+      logs.push({
+        timestamp: new Date(Date.now() + 1900).toISOString(),
+        level: "SUCCESS",
+        message: "[sfp_business] Finished corporate records scan.",
+      });
+    }
+
+    // Threat Intelligence module simulation
+    if (params.selectedModules.includes("sfp_threat_intel")) {
+      logs.push({
+        timestamp: new Date(Date.now() + 2000).toISOString(),
+        level: "INFO",
+        message: "[sfp_threat_intel] Checking abuseIPDB, Virustotal and Spamhaus blocklists...",
+      });
+      results.push({
+        moduleName: "sfp_threat_intel",
+        dataType: "ThreatIntel",
+        source: "AbuseIPDB reputation lookup",
+        targetValue: "Abuse score: 0% (Clean)",
+        confidence: 0.99,
+      });
+      logs.push({
+        timestamp: new Date(Date.now() + 2100).toISOString(),
+        level: "SUCCESS",
+        message: "[sfp_threat_intel] Threat intel check complete: target is clean.",
+      });
+    }
+
+    logs.push({
+      timestamp: new Date().toISOString(),
+      level: "SUCCESS",
+      message: "SpiderFoot module collection run successfully finished.",
+    });
+
+    return {
+      results,
+      logs,
+      durationMs: 380,
+    };
+  });
+
 /*
 ================================================================================
 ENTERPRISE CONNECTOR MARKETPLACE DATABASE SCHEMAS (Future SQL / Prisma Integration)
 ================================================================================
+
+// ================================================================================
+// SPIDERFOOT OSINT MODULES CONNECTOR SCHEMAS (Prisma / SQL Placeholders)
+// ================================================================================
+
+// 1. SpiderFoot Master Connector Configuration Table
+model SpiderfootConnectorConfig {
+  id                 String   @id @default(uuid())
+  status             String   @default("Connected") // Connected, Running, Disabled, Error
+  health             String   @default("Healthy") // Healthy, Degraded, Down
+  maxConcurrentScans Int      @default(5)
+  totalQueriesRun    Int      @default(0)
+  lastScanRun        DateTime?
+  updatedAt          DateTime @updatedAt
+}
+
+// 2. SpiderFoot Sub-Module Plugins Registry Table (WHOIS, DNS, Emails, Subdomains, GitHub, etc.)
+model SpiderfootModuleRegistry {
+  id             String   @id @default(uuid())
+  moduleId       String   @unique // e.g. "sfp_whois", "sfp_dns"
+  name           String
+  description    String
+  enabled        Boolean  @default(true)
+  health         String   @default("Healthy") // Healthy, Degraded, Down
+  status         String   @default("Idle") // Idle, Running, Disabled, Error
+  scansCount     Int      @default(0)
+  targetsFound   Int      @default(0)
+  apiKeyRequired Boolean  @default(false)
+  apiKeySecured  String?
+}
+
+// 3. SpiderFoot Extracted Intelligence Cache Table
+model SpiderfootIntelligenceCache {
+  id             String   @id @default(uuid())
+  query          String
+  moduleId       String
+  dataType       String   // WHOIS, DNS, Email, Subdomain, GitHub, Leaks, Certificate, IP, Business, ThreatIntel
+  targetValue    String
+  confidence     Float    @default(1.0)
+  extractedAt    DateTime @default(now())
+}
 
 // 1. Central Connector Registry Configuration Table
 model ConnectorRegistry {

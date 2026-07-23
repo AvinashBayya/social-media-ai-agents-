@@ -15,6 +15,7 @@ import {
   fetchSocialIntelligence,
   executeGoogleDork,
   executeShodanScan,
+  executeSpiderfootScan,
 } from "./news";
 import type {
   GoogleDorkParams,
@@ -24,6 +25,8 @@ import type {
   ShodanHostTelemetry,
   ShodanTelemetryLog,
   ShodanHistoryItem,
+  SpiderfootScanParams,
+  SpiderfootModuleResultItem,
 } from "./news";
 import { ConnectorManager } from "../lib/connector-manager";
 import type {
@@ -426,6 +429,156 @@ function ResearchCenter() {
   });
   const [shodanLatency, setShodanLatency] = useState(95);
   const [shodanSuccessRate, setShodanSuccessRate] = useState(100);
+
+  // SpiderFoot OSINT Modules Connector States
+  const [spiderfootStatus, setSpiderfootStatus] = useState<
+    "Connected" | "Running" | "Disabled" | "Error"
+  >("Connected");
+  const [spiderfootModulesList, setSpiderfootModulesList] = useState<any[]>(() => {
+    const conn = ConnectorManager.getInstance().get("spiderfoot-modules");
+    return conn?.metadata.config.spiderfootModules || [];
+  });
+  const [spiderfootResults, setSpiderfootResults] = useState<SpiderfootModuleResultItem[]>([]);
+  const [spiderfootLogs, setSpiderfootLogs] = useState<any[]>([
+    {
+      timestamp: new Date().toISOString(),
+      level: "INFO",
+      message: "SpiderFoot modules orchestrator ready. 10 module plugins loaded.",
+    },
+  ]);
+  const [isExecutingSpiderfoot, setIsExecutingSpiderfoot] = useState(false);
+  const [spiderfootLatency, setSpiderfootLatency] = useState(380);
+
+  const handleToggleSpiderfootModule = (modId: string) => {
+    const nextList = spiderfootModulesList.map((m) => {
+      if (m.id === modId) {
+        const nextEnabled = !m.enabled;
+        return {
+          ...m,
+          enabled: nextEnabled,
+          status: nextEnabled ? "Idle" : "Disabled",
+        };
+      }
+      return m;
+    });
+    setSpiderfootModulesList(nextList);
+
+    // Sync back to registry config
+    const manager = ConnectorManager.getInstance();
+    const conn = manager.get("spiderfoot-modules");
+    if (conn) {
+      conn.metadata.config.spiderfootModules = nextList;
+      setConnectors([...manager.list()]);
+    }
+  };
+
+  const handleUpdateSpiderfootModuleApiKey = (modId: string, key: string) => {
+    const nextList = spiderfootModulesList.map((m) => {
+      if (m.id === modId) {
+        return { ...m, apiKey: key };
+      }
+      return m;
+    });
+    setSpiderfootModulesList(nextList);
+
+    const manager = ConnectorManager.getInstance();
+    const conn = manager.get("spiderfoot-modules");
+    if (conn) {
+      conn.metadata.config.spiderfootModules = nextList;
+      setConnectors([...manager.list()]);
+    }
+  };
+
+  const handleExecuteSpiderfoot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (spiderfootStatus === "Disabled") {
+      setSpiderfootLogs((prev) => [
+        {
+          timestamp: new Date().toISOString(),
+          level: "WARNING",
+          message: "Execution blocked: SpiderFoot modules connector is disabled.",
+        },
+        ...prev,
+      ]);
+      return;
+    }
+
+    const enabledModules = spiderfootModulesList.filter((m) => m.enabled).map((m) => m.id);
+    if (enabledModules.length === 0) {
+      setSpiderfootLogs((prev) => [
+        {
+          timestamp: new Date().toISOString(),
+          level: "WARNING",
+          message: "Execution blocked: No SpiderFoot modules selected.",
+        },
+        ...prev,
+      ]);
+      return;
+    }
+
+    setIsExecutingSpiderfoot(true);
+    setSpiderfootStatus("Running");
+    setSpiderfootLogs((prev) => [
+      {
+        timestamp: new Date().toISOString(),
+        level: "INFO",
+        message: `Executing SpiderFoot target crawl on "${activeQuery}"...`,
+      },
+      ...prev,
+    ]);
+
+    try {
+      const res = await executeSpiderfootScan({
+        data: {
+          params: {
+            query: activeQuery,
+            selectedModules: enabledModules,
+          },
+        },
+      });
+
+      setSpiderfootResults(res.results);
+      setSpiderfootLogs(res.logs);
+
+      // Increment metrics locally in registry
+      const manager = ConnectorManager.getInstance();
+      const conn = manager.get("spiderfoot-modules");
+      if (conn) {
+        conn.metadata.usageCount++;
+        conn.metadata.lastRun = new Date().toISOString();
+        // Update individual module scan metrics
+        const updatedModules = spiderfootModulesList.map((m) => {
+          if (m.enabled) {
+            const matchesCount = res.results.filter((r: any) => r.moduleName === m.id).length;
+            return {
+              ...m,
+              metrics: {
+                scans: m.metrics.scans + 1,
+                targetsFound: m.metrics.targetsFound + matchesCount,
+              },
+            };
+          }
+          return m;
+        });
+        setSpiderfootModulesList(updatedModules);
+        conn.metadata.config.spiderfootModules = updatedModules;
+        setConnectors([...manager.list()]);
+      }
+    } catch (err) {
+      console.error(err);
+      setSpiderfootLogs((prev) => [
+        {
+          timestamp: new Date().toISOString(),
+          level: "ERROR",
+          message: `Scan failed: ${String(err)}`,
+        },
+        ...prev,
+      ]);
+    } finally {
+      setIsExecutingSpiderfoot(false);
+      setSpiderfootStatus("Connected");
+    }
+  };
 
   // Enterprise Connector Marketplace States
   const [connectors, setConnectors] = useState<Connector[]>(() =>
@@ -2748,6 +2901,307 @@ function ResearchCenter() {
                           </Card>
                         </div>
                       </div>
+                    </div>
+
+                    {/* SPIDERFOOT OSINT MODULES INTELLIGENCE */}
+                    <div className="mt-8 border-t pt-8 space-y-4 text-left">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-sm font-semibold flex items-center gap-2">
+                            <Bot className="size-4 text-primary" /> SpiderFoot Intelligence Modules
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            Orchestrate pluggable intelligence gathering modules to harvest domain,
+                            network and threat vectors
+                          </p>
+                        </div>
+                        <Badge
+                          variant="outline"
+                          className={`font-semibold border-0 ${
+                            spiderfootStatus === "Connected"
+                              ? "bg-green-500/10 text-green-500"
+                              : spiderfootStatus === "Running"
+                                ? "bg-blue-500/10 text-blue-500"
+                                : spiderfootStatus === "Disabled"
+                                  ? "bg-muted text-muted-foreground"
+                                  : "bg-red-500/10 text-red-500"
+                          }`}
+                        >
+                          SpiderFoot: {spiderfootStatus}
+                        </Badge>
+                      </div>
+
+                      <div className="grid gap-4 lg:grid-cols-3">
+                        {/* COLUMN 1: MODULE SELECTION & STATUS */}
+                        <div className="space-y-4 lg:col-span-2">
+                          <Card>
+                            <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                                <Settings className="size-4 text-primary" /> Pluggable Modules
+                                Registry
+                              </CardTitle>
+                              <span className="text-[10px] text-muted-foreground font-mono">
+                                {spiderfootModulesList.filter((m) => m.enabled).length} /{" "}
+                                {spiderfootModulesList.length} Active
+                              </span>
+                            </CardHeader>
+                            <CardContent className="p-4 space-y-2.5 max-h-[350px] overflow-y-auto">
+                              {spiderfootModulesList.map((mod) => (
+                                <div
+                                  key={mod.id}
+                                  className={`p-2.5 rounded-lg border flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors ${
+                                    mod.enabled
+                                      ? "bg-card border-primary/20"
+                                      : "bg-card/40 border-primary/5 opacity-60"
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-2.5 max-w-[70%] text-left">
+                                    <input
+                                      type="checkbox"
+                                      checked={mod.enabled}
+                                      onChange={() => handleToggleSpiderfootModule(mod.id)}
+                                      className="size-4 rounded border-primary/30 text-primary focus:ring-primary/45 mt-0.5"
+                                    />
+                                    <div className="text-left space-y-0.5">
+                                      <div className="flex items-center gap-2">
+                                        <span className="font-semibold text-xs text-foreground">
+                                          {mod.name}
+                                        </span>
+                                        <span className="text-[9px] font-mono text-muted-foreground bg-secondary px-1.5 py-0.2 rounded border">
+                                          {mod.id}
+                                        </span>
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground leading-normal">
+                                        {mod.description}
+                                      </p>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-3 shrink-0 self-end md:self-center">
+                                    {/* Health Dot */}
+                                    <div className="flex items-center gap-1 text-[10px] font-medium text-muted-foreground">
+                                      <span
+                                        className={`size-1.5 rounded-full ${
+                                          mod.health === "Healthy"
+                                            ? "bg-green-500"
+                                            : mod.health === "Degraded"
+                                              ? "bg-amber-500"
+                                              : "bg-red-500"
+                                        }`}
+                                      />{" "}
+                                      {mod.health}
+                                    </div>
+
+                                    {/* API Key input if required */}
+                                    {mod.apiKeyRequired && mod.enabled && (
+                                      <Input
+                                        type="password"
+                                        placeholder="API Token Required"
+                                        value={mod.apiKey || ""}
+                                        onChange={(e) =>
+                                          handleUpdateSpiderfootModuleApiKey(mod.id, e.target.value)
+                                        }
+                                        className="h-7 text-[10px] w-28 font-mono bg-card"
+                                      />
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </CardContent>
+                          </Card>
+                        </div>
+
+                        {/* COLUMN 2: EXECUTION CONTROL & STATS */}
+                        <div className="space-y-4">
+                          <Card className="bg-card/50">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                                <Cpu className="size-4 text-primary" /> Orchestration Panel
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-3.5 space-y-3.5 text-xs text-left">
+                              <form onSubmit={handleExecuteSpiderfoot} className="space-y-2.5">
+                                <div>
+                                  <label className="text-[10px] font-bold text-muted-foreground uppercase">
+                                    Target Query
+                                  </label>
+                                  <Input
+                                    value={activeQuery}
+                                    disabled
+                                    className="h-8.5 text-xs bg-muted/20 font-mono"
+                                  />
+                                </div>
+                                <Button
+                                  type="submit"
+                                  disabled={
+                                    isExecutingSpiderfoot ||
+                                    spiderfootModulesList.filter((m) => m.enabled).length === 0
+                                  }
+                                  className="w-full h-8.5 text-xs gap-1.5 font-bold"
+                                >
+                                  {isExecutingSpiderfoot ? (
+                                    <>
+                                      <RefreshCw className="size-3.5 animate-spin" /> Ingesting
+                                      Module Records...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Play className="size-3.5" /> Run Selected Modules
+                                    </>
+                                  )}
+                                </Button>
+                              </form>
+
+                              {/* MODULE METRICS */}
+                              <div className="border-t pt-3 space-y-2">
+                                <span className="font-bold text-[9px] text-muted-foreground uppercase block">
+                                  Module Metrics Summary
+                                </span>
+                                <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                  <div className="border p-2 rounded bg-card/20">
+                                    <span className="block text-muted-foreground/60 text-[8px] uppercase">
+                                      Active Modules
+                                    </span>
+                                    <span className="font-bold text-foreground">
+                                      {spiderfootModulesList.filter((m) => m.enabled).length}
+                                    </span>
+                                  </div>
+                                  <div className="border p-2 rounded bg-card/20">
+                                    <span className="block text-muted-foreground/60 text-[8px] uppercase">
+                                      Average Latency
+                                    </span>
+                                    <span className="font-bold text-foreground">
+                                      {spiderfootLatency}ms
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+
+                          {/* CONNECTOR TELEMETRY LOGS */}
+                          <Card className="bg-card/90">
+                            <CardHeader className="pb-1">
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                                  <Terminal className="size-4 text-primary" /> SpiderFoot Logs
+                                </CardTitle>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setSpiderfootLogs([])}
+                                  className="h-6 text-[10px] text-muted-foreground hover:text-foreground"
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="p-3">
+                              <div className="rounded bg-black/90 p-3 font-mono text-[9px] text-green-400 space-y-1.5 max-h-[140px] overflow-y-auto leading-normal text-left">
+                                {spiderfootLogs.length === 0 ? (
+                                  <div className="text-muted-foreground/60 italic text-center py-2">
+                                    No logging events registered.
+                                  </div>
+                                ) : (
+                                  spiderfootLogs.map((log, idx) => (
+                                    <div
+                                      key={idx}
+                                      className="flex gap-2 items-start whitespace-pre-wrap break-all border-b border-white/5 pb-1"
+                                    >
+                                      <span className="text-white/40 select-none">
+                                        [{log.timestamp.substring(11, 19)}]
+                                      </span>
+                                      <span
+                                        className={`font-bold ${
+                                          log.level === "SUCCESS"
+                                            ? "text-green-500"
+                                            : log.level === "WARNING"
+                                              ? "text-amber-500"
+                                              : log.level === "ERROR"
+                                                ? "text-red-500"
+                                                : "text-blue-400"
+                                        }`}
+                                      >
+                                        {log.level}
+                                      </span>
+                                      <span className="text-white/85">{log.message}</span>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </div>
+                      </div>
+
+                      {/* INGESTED RESULTS TABLE */}
+                      <Card className="mt-4">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm font-semibold flex items-center gap-1.5">
+                            <ShieldAlert className="size-4 text-primary" /> Collected Module
+                            Intelligence Records
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                          {spiderfootResults.length === 0 ? (
+                            <div className="p-8 text-center text-xs text-muted-foreground italic border-t">
+                              No records ingested yet. Click "Run Selected Modules" to fetch live
+                              intelligence indicators.
+                            </div>
+                          ) : (
+                            <div className="overflow-x-auto border-t">
+                              <table className="w-full text-left border-collapse text-xs">
+                                <thead>
+                                  <tr className="bg-muted/50 border-b font-semibold text-muted-foreground">
+                                    <th className="p-3">Module Plugin</th>
+                                    <th className="p-3">Data Vector</th>
+                                    <th className="p-3">Extracted Entity Value</th>
+                                    <th className="p-3">Source Broker</th>
+                                    <th className="p-3 text-right">Confidence</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {spiderfootResults.map((item, idx) => (
+                                    <tr
+                                      key={idx}
+                                      className="border-b hover:bg-muted/30 transition-colors"
+                                    >
+                                      <td className="p-3 font-mono text-[10px] text-primary">
+                                        {item.moduleName}
+                                      </td>
+                                      <td className="p-3">
+                                        <Badge
+                                          variant="outline"
+                                          className="text-[10px] uppercase font-bold"
+                                        >
+                                          {item.dataType}
+                                        </Badge>
+                                      </td>
+                                      <td className="p-3 font-semibold text-foreground">
+                                        {item.targetValue}
+                                      </td>
+                                      <td className="p-3 text-muted-foreground">{item.source}</td>
+                                      <td className="p-3 text-right font-mono text-xs">
+                                        <span
+                                          className={`font-bold ${
+                                            item.confidence >= 0.9
+                                              ? "text-green-500"
+                                              : item.confidence >= 0.7
+                                                ? "text-amber-500"
+                                                : "text-red-500"
+                                          }`}
+                                        >
+                                          {(item.confidence * 100).toFixed(0)}%
+                                        </span>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          )}
+                        </CardContent>
+                      </Card>
                     </div>
                   </div>
                 );

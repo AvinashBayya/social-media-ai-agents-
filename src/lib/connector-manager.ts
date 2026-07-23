@@ -27,6 +27,18 @@ export interface ConnectorLog {
   message: string;
 }
 
+export interface SpiderFootModule {
+  id: string;
+  name: string;
+  description: string;
+  enabled: boolean;
+  health: "Healthy" | "Degraded" | "Down";
+  status: "Idle" | "Running" | "Disabled" | "Error";
+  metrics: { scans: number; targetsFound: number };
+  apiKeyRequired: boolean;
+  apiKey?: string;
+}
+
 export interface ConnectorConfig {
   apiKey: string;
   oauthToken: string;
@@ -35,6 +47,7 @@ export interface ConnectorConfig {
   timeout: number; // in milliseconds
   rateLimitMax: number; // max per hour
   loggingEnabled: boolean;
+  spiderfootModules?: SpiderFootModule[];
 }
 
 export interface ConnectorMetadata {
@@ -262,6 +275,30 @@ export class ConnectorManager {
         rateLimits: { total: 20000, used: 450, remaining: 19550 },
       }),
     );
+
+    // 8. SpiderFoot Modules OSINT Connector
+    this.register(
+      new MockAdapter({
+        id: "spiderfoot-modules",
+        name: "SpiderFoot Modules",
+        category: "OSINT",
+        description:
+          "Orchestrates open-source intelligence collection via pluggable SpiderFoot modules.",
+        version: "3.5.0",
+        status: "Enabled",
+        health: "Healthy",
+        capabilities: [
+          "whois-lookup",
+          "dns-scraping",
+          "email-harvesting",
+          "subdomain-enumeration",
+          "leak-detection",
+          "threat-intel-pooling",
+        ],
+        averageRuntimeMs: 380,
+        rateLimits: { total: 1000, used: 15, remaining: 985 },
+      }),
+    );
   }
 }
 
@@ -292,6 +329,113 @@ class MockAdapter implements Connector {
         timeout: 10000,
         rateLimitMax: opts.rateLimits?.total || 100,
         loggingEnabled: true,
+        spiderfootModules:
+          opts.id === "spiderfoot-modules"
+            ? [
+                {
+                  id: "sfp_whois",
+                  name: "WHOIS",
+                  description: "Query WHOIS registry for domain age and ownership records.",
+                  enabled: true,
+                  health: "Healthy",
+                  status: "Idle",
+                  metrics: { scans: 12, targetsFound: 8 },
+                  apiKeyRequired: false,
+                },
+                {
+                  id: "sfp_dns",
+                  name: "DNS Resolution",
+                  description: "Query A, AAAA, MX, NS and TXT records including zone transfers.",
+                  enabled: true,
+                  health: "Healthy",
+                  status: "Idle",
+                  metrics: { scans: 14, targetsFound: 23 },
+                  apiKeyRequired: false,
+                },
+                {
+                  id: "sfp_emails",
+                  name: "Emails Harvesting",
+                  description: "Scrape public pages and logs to extract email addresses.",
+                  enabled: true,
+                  health: "Healthy",
+                  status: "Idle",
+                  metrics: { scans: 8, targetsFound: 11 },
+                  apiKeyRequired: false,
+                },
+                {
+                  id: "sfp_subdomains",
+                  name: "Subdomains Enumeration",
+                  description: "Identify host sub-records via dictionary and search engines.",
+                  enabled: true,
+                  health: "Healthy",
+                  status: "Idle",
+                  metrics: { scans: 15, targetsFound: 32 },
+                  apiKeyRequired: false,
+                },
+                {
+                  id: "sfp_github",
+                  name: "GitHub Scanner",
+                  description: "Search GitHub codebases for exposed keys and patterns.",
+                  enabled: false,
+                  health: "Healthy",
+                  status: "Disabled",
+                  metrics: { scans: 0, targetsFound: 0 },
+                  apiKeyRequired: true,
+                  apiKey: "",
+                },
+                {
+                  id: "sfp_leaks",
+                  name: "Leaks Scanner",
+                  description: "Check public data dump databases for target associations.",
+                  enabled: true,
+                  health: "Healthy",
+                  status: "Idle",
+                  metrics: { scans: 5, targetsFound: 2 },
+                  apiKeyRequired: false,
+                },
+                {
+                  id: "sfp_certificates",
+                  name: "Certificates Transparency",
+                  description: "Query CT logs for registered domain certificates.",
+                  enabled: true,
+                  health: "Healthy",
+                  status: "Idle",
+                  metrics: { scans: 10, targetsFound: 14 },
+                  apiKeyRequired: false,
+                },
+                {
+                  id: "sfp_ip_intel",
+                  name: "IP Intelligence",
+                  description: "Retrieve ISP details, ASN mappings, and IP Geolocation.",
+                  enabled: true,
+                  health: "Healthy",
+                  status: "Idle",
+                  metrics: { scans: 9, targetsFound: 6 },
+                  apiKeyRequired: false,
+                },
+                {
+                  id: "sfp_business",
+                  name: "Business Records",
+                  description: "Search commercial indices and public corporate registries.",
+                  enabled: false,
+                  health: "Healthy",
+                  status: "Disabled",
+                  metrics: { scans: 0, targetsFound: 0 },
+                  apiKeyRequired: false,
+                },
+                {
+                  id: "sfp_threat_intel",
+                  name: "Threat Intelligence",
+                  description: "Cross-reference target assets against abuse/malware blocklists.",
+                  enabled: true,
+                  health: "Healthy",
+                  status: "Idle",
+                  metrics: { scans: 11, targetsFound: 0 },
+                  apiKeyRequired: true,
+                  apiKey: "SF_THREAT_INTEL_MOCK_SECRET",
+                },
+              ]
+            : undefined,
       },
       logs: [
         { timestamp: new Date().toISOString(), level: "INFO", message: `Plugin initialized.` },
