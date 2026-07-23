@@ -1839,6 +1839,74 @@ export const executeShodanScan = createServerFn({ method: "POST" })
     };
   });
 
+/*
+================================================================================
+ENTERPRISE CONNECTOR MARKETPLACE DATABASE SCHEMAS (Future SQL / Prisma Integration)
+================================================================================
+
+// 1. Central Connector Registry Configuration Table
+model ConnectorRegistry {
+  id                  String   @id @default(uuid())
+  connectorId         String   @unique // e.g. "shodan-infra", "google-dorks"
+  name                String
+  category            String   // Internet Search, OSINT, Social Intelligence, News Intelligence, etc.
+  description         String
+  version             String   @default("1.0.0")
+  status              String   @default("Installed") // Installed, Enabled, Disabled, Deprecated, Failed
+  health              String   @default("Healthy") // Healthy, Degraded, Down
+  capabilities        String   // Comma-separated list or JSON array of strings
+  lastRun             DateTime?
+  averageRuntimeMs    Int      @default(0)
+  rateLimitsTotal     Int      @default(100)
+  rateLimitsUsed      Int      @default(0)
+  errorsCount         Int      @default(0)
+  usageCount          Int      @default(0)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+// 2. Connector API Credentials & Auth Config Table
+model ConnectorConfigDetail {
+  id                  String   @id @default(uuid())
+  connectorId         String   @unique
+  apiKeyEncrypted     String?
+  oauthTokenEncrypted String?
+  scheduleCron        String   @default("* / 5 * * * *")
+  retryCount          Int      @default(3)
+  timeoutMs           Int      @default(10000)
+  rateLimitMaxPerHour Int      @default(100)
+  policiesJson        String?  // JSON configuration representing safety/retry policies
+  loggingEnabled      Boolean  @default(true)
+  updatedAt           DateTime @updatedAt
+}
+
+// 3. Central Telemetry Logs Table
+model ConnectorTelemetryLogs {
+  id           String   @id @default(uuid())
+  connectorId  String
+  timestamp    DateTime @default(now())
+  level        String   // INFO, WARNING, ERROR, SUCCESS
+  message      String
+}
+================================================================================
+*/
+
+export const toggleConnectorState = createServerFn({ method: "POST" })
+  .validator((data: { id: string; status: "Enabled" | "Disabled" } | undefined) => data)
+  .handler(async ({ data }) => {
+    if (!data) throw new Error("Missing parameters");
+    console.log(`[Marketplace API] Toggling connector ${data.id} to ${data.status}`);
+    return { success: true, id: data.id, status: data.status, timestamp: new Date().toISOString() };
+  });
+
+export const updateConnectorConfigServer = createServerFn({ method: "POST" })
+  .validator((data: { id: string; config: any } | undefined) => data)
+  .handler(async ({ data }) => {
+    if (!data) throw new Error("Missing parameters");
+    console.log(`[Marketplace API] Updating config for connector ${data.id}:`, data.config);
+    return { success: true, id: data.id, timestamp: new Date().toISOString() };
+  });
+
 type NewsSearch = {
   q?: string;
 };

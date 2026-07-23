@@ -25,6 +25,14 @@ import type {
   ShodanTelemetryLog,
   ShodanHistoryItem,
 } from "./news";
+import { ConnectorManager } from "../lib/connector-manager";
+import type {
+  Connector,
+  ConnectorCategory,
+  ConnectorState,
+  ConnectorLog,
+  ConnectorConfig,
+} from "../lib/connector-manager";
 import {
   Search,
   FolderOpen,
@@ -418,6 +426,50 @@ function ResearchCenter() {
   });
   const [shodanLatency, setShodanLatency] = useState(95);
   const [shodanSuccessRate, setShodanSuccessRate] = useState(100);
+
+  // Enterprise Connector Marketplace States
+  const [connectors, setConnectors] = useState<Connector[]>(() =>
+    ConnectorManager.getInstance().list(),
+  );
+  const [marketplaceSearch, setMarketplaceSearch] = useState("");
+  const [marketplaceCategory, setMarketplaceCategory] = useState<string>("All");
+  const [marketplaceStatus, setMarketplaceStatus] = useState<string>("All");
+  const [marketplaceSort, setMarketplaceSort] = useState<string>("name");
+
+  // Selected connector for Configuration Details & Lifecycle logs inspection
+  const [selectedConfigConnectorId, setSelectedConfigConnectorId] = useState<string | null>(null);
+  const [selectedLogsConnectorId, setSelectedLogsConnectorId] = useState<string | null>(null);
+
+  const handleToggleConnector = async (id: string, currentStatus: ConnectorState) => {
+    const manager = ConnectorManager.getInstance();
+    if (currentStatus === "Enabled") {
+      await manager.disableConnector(id);
+    } else {
+      await manager.enableConnector(id);
+    }
+    setConnectors([...manager.list()]);
+  };
+
+  const handleUpdateConfigValue = (id: string, updatedFields: Partial<ConnectorConfig>) => {
+    const manager = ConnectorManager.getInstance();
+    manager.updateConnectorConfig(id, updatedFields);
+    setConnectors([...manager.list()]);
+  };
+
+  const handleConnectorHealthSelfTest = (id: string) => {
+    const manager = ConnectorManager.getInstance();
+    const conn = manager.get(id);
+    if (conn) {
+      const nextPing = 70 + Math.floor(Math.random() * 80);
+      conn.metadata.health = nextPing > 130 ? "Degraded" : "Healthy";
+      conn.metadata.logs.push({
+        timestamp: new Date().toISOString(),
+        level: "SUCCESS",
+        message: `Manual diagnostics self-test ping success. Latency: ${nextPing}ms`,
+      });
+      setConnectors([...manager.list()]);
+    }
+  };
 
   useEffect(() => {
     setShodanParams((prev) => ({ ...prev, query: activeQuery }));
@@ -997,6 +1049,7 @@ function ResearchCenter() {
                 { id: "analytics", label: "Analytics" },
                 { id: "reports", label: "Reports" },
                 { id: "reviews", label: "Reviews" },
+                { id: "marketplace", label: "Connector Marketplace" },
               ].map((tab) => (
                 <TabsTrigger
                   key={tab.id}
@@ -3159,6 +3212,376 @@ function ResearchCenter() {
                   </div>
                 </div>
               )}
+            </TabsContent>
+
+            {/* CONNECTOR MARKETPLACE TAB */}
+            <TabsContent value="marketplace" className="space-y-4">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-4">
+                <div className="text-left">
+                  <h3 className="text-sm font-semibold flex items-center gap-2">
+                    <Radio className="size-4 text-primary" /> Enterprise Connector Marketplace
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Discover, install, monitor, and configure Sentinel AI intelligence plugins
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    placeholder="Search connectors..."
+                    value={marketplaceSearch}
+                    onChange={(e) => setMarketplaceSearch(e.target.value)}
+                    className="h-8.5 text-xs w-[180px] bg-card"
+                  />
+                  <select
+                    value={marketplaceCategory}
+                    onChange={(e) => setMarketplaceCategory(e.target.value)}
+                    className="bg-card text-foreground border rounded px-2.5 py-1 outline-none text-xs h-8.5 font-medium"
+                  >
+                    <option value="All">All Categories</option>
+                    <option value="Internet Search">Internet Search</option>
+                    <option value="OSINT">OSINT</option>
+                    <option value="Social Intelligence">Social Intelligence</option>
+                    <option value="News Intelligence">News Intelligence</option>
+                    <option value="Infrastructure Intelligence">Infrastructure Intelligence</option>
+                    <option value="Document Intelligence">Document Intelligence</option>
+                    <option value="Media Intelligence">Media Intelligence</option>
+                    <option value="Investigation Connectors">Investigation Connectors</option>
+                  </select>
+                  <select
+                    value={marketplaceStatus}
+                    onChange={(e) => setMarketplaceStatus(e.target.value)}
+                    className="bg-card text-foreground border rounded px-2.5 py-1 outline-none text-xs h-8.5 font-medium"
+                  >
+                    <option value="All">All Statuses</option>
+                    <option value="Enabled">Enabled</option>
+                    <option value="Disabled">Disabled</option>
+                    <option value="Installed">Installed</option>
+                    <option value="Failed">Failed</option>
+                    <option value="Deprecated">Deprecated</option>
+                  </select>
+                  <select
+                    value={marketplaceSort}
+                    onChange={(e) => setMarketplaceSort(e.target.value)}
+                    className="bg-card text-foreground border rounded px-2.5 py-1 outline-none text-xs h-8.5 font-medium"
+                  >
+                    <option value="name">Sort by Name</option>
+                    <option value="version">Sort by Version</option>
+                    <option value="lastRun">Sort by Last Run</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* CONNECTORS GRID */}
+              {(() => {
+                // Apply search, category, status filters & sorting
+                const filteredConnectors = connectors
+                  .filter((conn) => {
+                    const matchSearch =
+                      conn.metadata.name.toLowerCase().includes(marketplaceSearch.toLowerCase()) ||
+                      conn.metadata.description
+                        .toLowerCase()
+                        .includes(marketplaceSearch.toLowerCase());
+                    const matchCategory =
+                      marketplaceCategory === "All" ||
+                      conn.metadata.category === marketplaceCategory;
+                    const matchStatus =
+                      marketplaceStatus === "All" || conn.metadata.status === marketplaceStatus;
+                    return matchSearch && matchCategory && matchStatus;
+                  })
+                  .sort((a, b) => {
+                    if (marketplaceSort === "name") {
+                      return a.metadata.name.localeCompare(b.metadata.name);
+                    } else if (marketplaceSort === "version") {
+                      return b.metadata.version.localeCompare(a.metadata.version);
+                    } else {
+                      const aTime = a.metadata.lastRun ? new Date(a.metadata.lastRun).getTime() : 0;
+                      const bTime = b.metadata.lastRun ? new Date(b.metadata.lastRun).getTime() : 0;
+                      return bTime - aTime;
+                    }
+                  });
+
+                if (filteredConnectors.length === 0) {
+                  return (
+                    <div className="p-12 text-center text-muted-foreground text-xs border rounded bg-card/40 leading-normal">
+                      No intelligence connectors match the current search filters.
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    {filteredConnectors.map((conn) => {
+                      const isConfigOpen = selectedConfigConnectorId === conn.metadata.id;
+                      const isLogsOpen = selectedLogsConnectorId === conn.metadata.id;
+
+                      return (
+                        <Card
+                          key={conn.metadata.id}
+                          className="bg-card/50 border-primary/5 hover:border-primary/20 transition-all flex flex-col justify-between"
+                        >
+                          <CardHeader className="pb-2">
+                            <div className="flex items-start justify-between">
+                              <div className="text-left">
+                                <CardTitle className="text-sm font-semibold flex items-center gap-1">
+                                  {conn.metadata.name}
+                                </CardTitle>
+                                <span className="text-[10px] text-muted-foreground font-mono">
+                                  v{conn.metadata.version} · {conn.metadata.category}
+                                </span>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className={`text-[9px] border-0 px-2 py-0.5 font-bold ${
+                                  conn.metadata.status === "Enabled"
+                                    ? "bg-green-500/10 text-green-500"
+                                    : conn.metadata.status === "Disabled"
+                                      ? "bg-amber-500/10 text-amber-500"
+                                      : conn.metadata.status === "Failed"
+                                        ? "bg-red-500/10 text-red-500"
+                                        : "bg-muted text-muted-foreground"
+                                }`}
+                              >
+                                {conn.metadata.status}
+                              </Badge>
+                            </div>
+                          </CardHeader>
+
+                          <CardContent className="p-4 pt-0 space-y-4 flex-1 flex flex-col justify-between text-left">
+                            <div className="space-y-3">
+                              <p className="text-xs text-muted-foreground leading-normal">
+                                {conn.metadata.description}
+                              </p>
+
+                              {/* Capabilities List */}
+                              <div className="flex flex-wrap gap-1">
+                                {conn.metadata.capabilities.map((cap) => (
+                                  <Badge
+                                    key={cap}
+                                    variant="secondary"
+                                    className="text-[9px] font-mono border-0 font-normal scale-95 origin-left"
+                                  >
+                                    {cap}
+                                  </Badge>
+                                ))}
+                              </div>
+
+                              {/* Metrics details */}
+                              <div className="grid grid-cols-2 gap-2 border-t pt-2 text-[10px] text-muted-foreground">
+                                <div>
+                                  <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
+                                    Health check
+                                  </span>
+                                  <span
+                                    className={`font-semibold flex items-center gap-1 ${
+                                      conn.metadata.health === "Healthy"
+                                        ? "text-green-500"
+                                        : conn.metadata.health === "Degraded"
+                                          ? "text-amber-500"
+                                          : "text-red-500"
+                                    }`}
+                                  >
+                                    <span
+                                      className={`size-1.5 rounded-full ${
+                                        conn.metadata.health === "Healthy"
+                                          ? "bg-green-500"
+                                          : conn.metadata.health === "Degraded"
+                                            ? "bg-amber-500"
+                                            : "bg-red-500"
+                                      }`}
+                                    />{" "}
+                                    {conn.metadata.health}
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
+                                    Rate Limits
+                                  </span>
+                                  <span className="text-foreground font-semibold">
+                                    {conn.metadata.rateLimits.remaining} /{" "}
+                                    {conn.metadata.rateLimits.total} hr
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
+                                    Avg Runtime
+                                  </span>
+                                  <span className="text-foreground font-semibold">
+                                    {conn.metadata.averageRuntimeMs}ms
+                                  </span>
+                                </div>
+                                <div>
+                                  <span className="block text-muted-foreground/60 uppercase text-[8px] font-bold">
+                                    Last Run
+                                  </span>
+                                  <span className="text-foreground font-semibold">
+                                    {conn.metadata.lastRun
+                                      ? new Date(conn.metadata.lastRun).toLocaleTimeString()
+                                      : "Never"}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* INLINE CONFIGURATION DRAWER */}
+                            {isConfigOpen && (
+                              <div className="border-t pt-3.5 mt-3 space-y-2.5 text-xs bg-muted/20 p-2.5 rounded border">
+                                <span className="font-bold text-[9px] text-muted-foreground uppercase flex items-center gap-1">
+                                  <Key className="size-3 text-primary" /> Configuration Panel
+                                </span>
+
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                                    API Token key
+                                  </label>
+                                  <Input
+                                    type="password"
+                                    placeholder="Secret Token"
+                                    value={conn.metadata.config.apiKey}
+                                    onChange={(e) =>
+                                      handleUpdateConfigValue(conn.metadata.id, {
+                                        apiKey: e.target.value,
+                                      })
+                                    }
+                                    className="h-7 text-xs font-mono"
+                                  />
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-2">
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                                      Timeout (ms)
+                                    </label>
+                                    <Input
+                                      type="number"
+                                      value={conn.metadata.config.timeout}
+                                      onChange={(e) =>
+                                        handleUpdateConfigValue(conn.metadata.id, {
+                                          timeout: parseInt(e.target.value, 10) || 10000,
+                                        })
+                                      }
+                                      className="h-7 text-xs"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                                      Retry Policy
+                                    </label>
+                                    <Input
+                                      type="number"
+                                      value={conn.metadata.config.retryCount}
+                                      onChange={(e) =>
+                                        handleUpdateConfigValue(conn.metadata.id, {
+                                          retryCount: parseInt(e.target.value, 10) || 3,
+                                        })
+                                      }
+                                      className="h-7 text-xs"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[9px] font-bold text-muted-foreground uppercase">
+                                    Rate Limit per hour
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    value={conn.metadata.config.rateLimitMax}
+                                    onChange={(e) =>
+                                      handleUpdateConfigValue(conn.metadata.id, {
+                                        rateLimitMax: parseInt(e.target.value, 10) || 100,
+                                      })
+                                    }
+                                    className="h-7 text-xs"
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* INLINE TELEMETRY LOGS */}
+                            {isLogsOpen && (
+                              <div className="border-t pt-3.5 mt-3 space-y-1 bg-black/90 p-2 rounded text-[8.5px] font-mono text-green-400 max-h-36 overflow-y-auto leading-relaxed text-left">
+                                <span className="font-bold text-[8px] text-white/50 uppercase block border-b border-white/5 pb-1">
+                                  Connector Diagnostic Logs
+                                </span>
+                                {conn.metadata.logs.map((log, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="flex gap-1.5 items-start py-0.5 border-b border-white/5"
+                                  >
+                                    <span className="text-white/30">
+                                      [{log.timestamp.substring(11, 19)}]
+                                    </span>
+                                    <span
+                                      className={
+                                        log.level === "SUCCESS"
+                                          ? "text-green-500"
+                                          : log.level === "WARNING"
+                                            ? "text-amber-500"
+                                            : log.level === "ERROR"
+                                              ? "text-red-500"
+                                              : "text-blue-400"
+                                      }
+                                    >
+                                      {log.level}
+                                    </span>
+                                    <span className="text-white/80">{log.message}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* CARD CONTROLS */}
+                            <div className="flex gap-1.5 pt-3 border-t mt-3 flex-wrap">
+                              <Button
+                                size="sm"
+                                variant={
+                                  conn.metadata.status === "Enabled" ? "destructive" : "default"
+                                }
+                                onClick={() =>
+                                  handleToggleConnector(conn.metadata.id, conn.metadata.status)
+                                }
+                                className="h-7 text-[10px] px-2 flex-1 font-semibold"
+                              >
+                                {conn.metadata.status === "Enabled" ? "Disable" : "Enable"}
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  setSelectedConfigConnectorId(
+                                    isConfigOpen ? null : conn.metadata.id,
+                                  )
+                                }
+                                className={`h-7 text-[10px] px-2 flex-1 font-semibold ${isConfigOpen ? "bg-accent" : ""}`}
+                              >
+                                Configure
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleConnectorHealthSelfTest(conn.metadata.id)}
+                                className="h-7 text-[10px] px-2 flex-1 font-semibold"
+                              >
+                                Ping
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() =>
+                                  setSelectedLogsConnectorId(isLogsOpen ? null : conn.metadata.id)
+                                }
+                                className={`h-7 text-[10px] px-2 flex-1 font-semibold ${isLogsOpen ? "bg-accent" : ""}`}
+                              >
+                                Logs
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </TabsContent>
           </Tabs>
         </div>
