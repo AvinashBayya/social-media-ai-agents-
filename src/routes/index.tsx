@@ -83,6 +83,7 @@ import {
   Settings,
   Shield,
   Cpu,
+  Play,
 } from "lucide-react";
 import {
   Area,
