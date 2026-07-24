@@ -231,7 +231,7 @@ export const fetchGeopoliticalSecurity = createServerFn({ method: "GET" })
     try {
       const apiQuery = query ? encodeURIComponent(query) : "military conflict";
       const res = await fetch(`https://api.gdeltproject.org/api/v2/doc/doc?query=${apiQuery}&mode=ArtList&format=JSON&maxrecords=15`, {
-        signal: AbortSignal.timeout(5000)
+        signal: AbortSignal.timeout(8000)
       });
       if (res.ok) {
         const data = await res.json();
@@ -246,6 +246,23 @@ export const fetchGeopoliticalSecurity = createServerFn({ method: "GET" })
       }
     } catch (err) {
       console.error("GDELT fetch failed:", err);
+      // Fallback: Query Google News search RSS if GDELT fails or times out
+      if (query.trim()) {
+        try {
+          const Parser = (await import("rss-parser")).default;
+          const parser = new Parser();
+          const parsedFeed = await parser.parseURL(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US`);
+          gdeltStories = (parsedFeed.items || []).slice(0, 10).map((item, idx) => ({
+            id: idx,
+            title: item.title,
+            url: item.link,
+            source: typeof item.source === "object" ? (item.source as any).text : (item.source || "Google News"),
+            date: item.pubDate || new Date().toISOString()
+          }));
+        } catch (rssErr) {
+          console.error("Geopolitical fallback RSS failed:", rssErr);
+        }
+      }
     }
     
     if (gdeltStories.length === 0) {
