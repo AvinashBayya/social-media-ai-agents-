@@ -7,29 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { useState, useEffect } from "react";
 import { createServerFn } from "@tanstack/react-start";
 import {
-  Search,
-  Filter,
-  Languages,
-  Bookmark,
-  Expand,
-  MapPin,
-  ExternalLink,
-  RefreshCw,
+  Search, Filter, Languages, Bookmark, Expand, MapPin, ExternalLink, RefreshCw
 } from "lucide-react";
-
-function isOfflineError(err: any): boolean {
-  if (!err) return false;
-  const msg = (err.message || "").toLowerCase();
-  const code = (err.code || "").toLowerCase();
-  return (
-    code === "enotfound" ||
-    code === "econnrefused" ||
-    msg.includes("enotfound") ||
-    msg.includes("fetch failed") ||
-    msg.includes("getaddrinfo") ||
-    msg.includes("network")
-  );
-}
 
 export const fetchLiveMonitoring = createServerFn({ method: "GET" })
   .validator((data: { q?: string; query?: string } | undefined) => data)
@@ -38,6 +17,29 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
     try {
       const Parser = (await import("rss-parser")).default;
       const parser = new Parser();
+
+      // 1. Fetch Real Images from Wikipedia Search API matching search query
+      const wikiImages: string[] = [];
+      try {
+        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(q)}&gsrlimit=6&prop=pageimages&piprop=thumbnail&pithumbsize=400&format=json&origin=*`;
+        const res = await fetch(wikiUrl, {
+          headers: {
+            "User-Agent": "SentinelAI/1.0.0 (contact: admin@sentinelai.io)"
+          }
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const pages = json.query?.pages || {};
+          for (const id of Object.keys(pages)) {
+            const page = pages[id];
+            if (page.thumbnail && page.thumbnail.source) {
+              wikiImages.push(page.thumbnail.source);
+            }
+          }
+        }
+      } catch (wikiErr) {
+        console.error("Wikipedia live images fetch failed:", wikiErr);
+      }
 
       const url = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`;
       const feed = await parser.parseURL(url);
@@ -62,38 +64,13 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
           handle = "@" + source.toLowerCase().replace(/[^a-z0-9]/g, "") + "_feed";
         } else if (idx % 3 === 2) {
           platform = "Telegram";
-          handle = "channel_" + (1000 + ((idx * 23) % 9000));
+          handle = "channel_" + (1000 + (idx * 23) % 9000);
         }
 
         let sentiment: "positive" | "negative" | "neutral" = "neutral";
-        const posWords = [
-          "success",
-          "achieve",
-          "land",
-          "keynote",
-          "progress",
-          "growth",
-          "approved",
-          "positive",
-          "launch",
-          "space",
-          "orbit",
-        ];
-        const negWords = [
-          "fail",
-          "crash",
-          "lost",
-          "delay",
-          "breach",
-          "leak",
-          "unverified",
-          "investigate",
-          "alert",
-          "crashed",
-          "dispute",
-          "restrict",
-        ];
-
+        const posWords = ["success", "achieve", "land", "keynote", "progress", "growth", "approved", "positive", "launch", "space", "orbit"];
+        const negWords = ["fail", "crash", "lost", "delay", "breach", "leak", "unverified", "investigate", "alert", "crashed", "dispute", "restrict"];
+        
         let posCount = 0;
         let negCount = 0;
         for (const w of posWords) {
@@ -106,25 +83,11 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
         else if (negCount > posCount) sentiment = "negative";
 
         let threat: "low" | "medium" | "high" | "critical" = "low";
-        if (
-          textLower.includes("crash") ||
-          textLower.includes("breach") ||
-          textLower.includes("critical") ||
-          textLower.includes("catastrophe")
-        ) {
+        if (textLower.includes("crash") || textLower.includes("breach") || textLower.includes("critical") || textLower.includes("catastrophe")) {
           threat = "critical";
-        } else if (
-          textLower.includes("leak") ||
-          textLower.includes("unverified") ||
-          textLower.includes("investigate") ||
-          textLower.includes("alert")
-        ) {
+        } else if (textLower.includes("leak") || textLower.includes("unverified") || textLower.includes("investigate") || textLower.includes("alert")) {
           threat = "high";
-        } else if (
-          textLower.includes("delay") ||
-          textLower.includes("dispute") ||
-          textLower.includes("restrict")
-        ) {
+        } else if (textLower.includes("delay") || textLower.includes("dispute") || textLower.includes("restrict")) {
           threat = "medium";
         }
 
@@ -133,78 +96,55 @@ export const fetchLiveMonitoring = createServerFn({ method: "GET" })
           credibility = idx % 2 === 0 ? "medium" : "unverified";
         }
 
-        const locations = [
-          "New Delhi, IN",
-          "Damascus, SY",
-          "London, UK",
-          "Cupertino, US",
-          "Washington, US",
-          "Bengaluru, IN",
-          "Houston, US",
-          "Moscow, RU",
-          "Tokyo, JP",
-        ];
+        const locations = ["New Delhi, IN", "Damascus, SY", "London, UK", "Cupertino, US", "Washington, US", "Bengaluru, IN", "Houston, US", "Moscow, RU", "Tokyo, JP"];
         const loc = locations[idx % locations.length];
 
         const tags = [
           "#" + q.replace(/[^a-zA-Z0-9]/g, ""),
           platform === "Telegram" ? "OSINT" : "intel",
-          sentiment === "positive" ? "growth" : "alert",
+          sentiment === "positive" ? "growth" : "alert"
         ];
+
+        // Only assign images if we actually resolved some real Wikipedia thumbnails
+        const hasImage = wikiImages.length > 0 && (idx % 3 === 0) && (idx / 3 < wikiImages.length);
+        const imageUrl = hasImage ? wikiImages[Math.floor(idx / 3)] : undefined;
+
+        let language = "EN";
+        let displayTxt = title + ". " + (item.contentSnippet || "");
+        
+        // Simulating different languages based on index
+        if (idx % 4 === 1) {
+          language = "ES";
+          displayTxt = `El País informa: El despliegue de ${q} avanza según lo previsto. Los investigadores confirman la recopilación de datos meteorológicos y de órbita.`;
+        } else if (idx % 4 === 2) {
+          language = "FR";
+          displayTxt = `Le Monde rapporte: Les détails du projet ${q} ont été partagés lors de la conférence. Les analyses de sécurité indiquent une faible exposition aux risques.`;
+        } else if (idx % 4 === 3) {
+          language = "HI";
+          displayTxt = `दैनिक जागरण: ${q} मिशन के बारे में महत्वपूर्ण जानकारी सार्वजनिक की गई। वैज्ञानिकों ने सफल परीक्षण की घोषणा की है।`;
+        }
 
         return {
           author: source,
           handle,
           platform,
           pubDate: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
-          loc,
-          text: title + ". " + (item.contentSnippet || ""),
+          loc: language === "ES" ? "Madrid, ES" : language === "FR" ? "Paris, FR" : language === "HI" ? "New Delhi, IN" : loc,
+          text: displayTxt,
           tags,
           sentiment,
           threat,
           credibility,
           url: item.link,
-          hasImage: idx % 4 === 0,
+          hasImage,
+          imageUrl,
+          language
         };
       });
 
       return { streams };
     } catch (err) {
       console.error("Live Monitoring fetch failed:", err);
-      if (isOfflineError(err)) {
-        console.warn("System is offline. Serving simulated live stream monitoring for:", q);
-        const streams = [
-          {
-            author: "OSINT Sentinel",
-            handle: "@osint_sentinel",
-            platform: "News",
-            pubDate: new Date().toISOString(),
-            loc: "Washington, US",
-            text: `Monitored intelligence activity spike detected for: ${q}. Analyzing configuration telemetry...`,
-            tags: ["#" + q.replace(/[^a-zA-Z0-9]/g, ""), "OSINT", "alert"],
-            sentiment: "neutral",
-            threat: "medium",
-            credibility: "verified",
-            url: "https://reuters.com",
-            hasImage: false,
-          },
-          {
-            author: "Telemetry Feed",
-            handle: "channel_9845",
-            platform: "Telegram",
-            pubDate: new Date(Date.now() - 30000).toISOString(),
-            loc: "Geneva, CH",
-            text: `Deployment metrics show stable execution environment for ${q} instances. No breaches reported.`,
-            tags: ["#" + q.replace(/[^a-zA-Z0-9]/g, ""), "telemetry", "stable"],
-            sentiment: "positive",
-            threat: "low",
-            credibility: "medium",
-            url: "https://telegram.org",
-            hasImage: false,
-          },
-        ];
-        return { streams };
-      }
       return { streams: [] };
     }
   });
@@ -214,15 +154,7 @@ export const Route = createFileRoute("/live")({
   component: Page,
 });
 
-const examples = [
-  "Tesla",
-  "OpenAI",
-  "India Election",
-  "ISRO",
-  "Narendra Modi",
-  "OPEC",
-  "Vector-17",
-];
+const examples = ["Tesla", "OpenAI", "India Election", "ISRO", "Narendra Modi", "OPEC", "Vector-17"];
 const quickFilters = ["Social", "News", "Images", "Videos", "OSINT", "Forums", "Documents"];
 
 function formatRelativeTime(dateStr: string): string {
@@ -250,6 +182,60 @@ function Page() {
   const [bufferIndex, setBufferIndex] = useState(0);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
 
+  // Advanced dropdown filter states
+  const [selectedLanguage, setSelectedLanguage] = useState("All");
+  const [selectedCountry, setSelectedCountry] = useState("All");
+  const [selectedDate, setSelectedDate] = useState("24h");
+  const [selectedCredibility, setSelectedCredibility] = useState("Any");
+  const [selectedThreat, setSelectedThreat] = useState("Any");
+
+  // Active interaction states
+  const [bookmarks, setBookmarks] = useState<string[]>([]);
+  const [translatedUrls, setTranslatedUrls] = useState<string[]>([]);
+  const [expandedPost, setExpandedPost] = useState<any | null>(null);
+
+  // Sync bookmarks from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("sentinel_bookmarks");
+      if (saved) setBookmarks(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const toggleBookmark = (url: string) => {
+    setBookmarks((prev) => {
+      let updated;
+      if (prev.includes(url)) {
+        updated = prev.filter((x) => x !== url);
+      } else {
+        updated = [...prev, url];
+      }
+      localStorage.setItem("sentinel_bookmarks", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const toggleTranslate = (url: string) => {
+    setTranslatedUrls((prev) => 
+      prev.includes(url) ? prev.filter((x) => x !== url) : [...prev, url]
+    );
+  };
+
+  const getPostText = (post: any) => {
+    if (translatedUrls.includes(post.url)) {
+      if (post.language === "ES") {
+        return `[Translated to English]: El País reports: The deployment of ${activeQuery} is progressing as planned. Researchers confirm meteorological and orbit data collection.`;
+      }
+      if (post.language === "FR") {
+        return `[Translated to English]: Le Monde reports: Details of the ${activeQuery} project were shared during the conference. Security analyses indicate low risk exposure.`;
+      }
+      if (post.language === "HI") {
+        return `[Translated to English]: Dainik Jagran: Important information regarding ${activeQuery} mission was made public. Scientists have announced the successful test.`;
+      }
+    }
+    return post.text;
+  };
+
   const fetchStream = async (queryStr: string) => {
     setIsLoading(true);
     try {
@@ -272,6 +258,33 @@ function Page() {
     fetchStream(activeQuery);
   }, [activeQuery]);
 
+  // Polling new updates from live feed search index in the background every 25 seconds
+  useEffect(() => {
+    if (!activeQuery) return;
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetchLiveMonitoring({ data: { query: activeQuery, q: activeQuery } });
+        const fetched = res?.streams || [];
+        if (fetched.length > 0) {
+          setBuffer((prevBuffer) => {
+            const existingUrls = new Set(prevBuffer.map((x) => x.url));
+            const newItems = fetched.filter((x) => !existingUrls.has(x.url));
+            
+            if (newItems.length > 0) {
+              return [...newItems, ...prevBuffer];
+            }
+            return prevBuffer;
+          });
+        }
+      } catch (err) {
+        console.error("Background live stream poll failed:", err);
+      }
+    }, 25000);
+
+    return () => clearInterval(pollInterval);
+  }, [activeQuery]);
+
   useEffect(() => {
     if (buffer.length <= bufferIndex || isLoading) return;
 
@@ -279,7 +292,7 @@ function Page() {
       setVisibleStreams((prev) => {
         const nextItem = buffer[bufferIndex];
         setBufferIndex((prevIdx) => prevIdx + 1);
-
+        
         // Prepend and cap at 8
         const updated = [nextItem, ...prev];
         return updated.slice(0, 8);
@@ -297,38 +310,52 @@ function Page() {
   };
 
   const filteredStreams = visibleStreams.filter((item) => {
-    if (!activeFilter) return true;
-    switch (activeFilter) {
-      case "Social":
-        return item.platform === "X / Twitter" || item.platform === "Telegram";
-      case "News":
-        return item.platform === "News";
-      case "Images":
-        return item.hasImage;
-      case "Videos":
-        return (
-          item.text.toLowerCase().includes("video") ||
-          item.text.toLowerCase().includes("footage") ||
-          item.text.toLowerCase().includes("clip")
-        );
-      case "OSINT":
-        return item.tags.includes("OSINT") || item.platform === "Telegram";
-      case "Forums":
-        return (
-          item.platform === "Telegram" ||
-          item.handle.includes("group") ||
-          item.handle.includes("channel")
-        );
-      case "Documents":
-        return (
-          item.text.toLowerCase().includes("report") ||
-          item.text.toLowerCase().includes("pdf") ||
-          item.text.toLowerCase().includes("document") ||
-          item.text.toLowerCase().includes("brief")
-        );
-      default:
-        return true;
+    // 1. Quick Filters
+    if (activeFilter) {
+      switch (activeFilter) {
+        case "Social":
+          if (item.platform !== "X / Twitter" && item.platform !== "Telegram") return false;
+          break;
+        case "News":
+          if (item.platform !== "News") return false;
+          break;
+        case "Images":
+          if (!item.hasImage) return false;
+          break;
+        case "Videos":
+          if (!item.text.toLowerCase().includes("video") && !item.text.toLowerCase().includes("footage") && !item.text.toLowerCase().includes("clip")) return false;
+          break;
+        case "OSINT":
+          if (!item.tags.includes("OSINT") && item.platform !== "Telegram") return false;
+          break;
+        case "Forums":
+          if (item.platform !== "Telegram" && !item.handle.includes("group") && !item.handle.includes("channel")) return false;
+          break;
+        case "Documents":
+          if (!item.text.toLowerCase().includes("report") && !item.text.toLowerCase().includes("pdf") && !item.text.toLowerCase().includes("document") && !item.text.toLowerCase().includes("brief")) return false;
+          break;
+      }
     }
+
+    // 2. Language filter
+    if (selectedLanguage !== "All" && item.language !== selectedLanguage) return false;
+
+    // 3. Country filter
+    if (selectedCountry !== "All") {
+      if (selectedCountry === "US" && !item.loc.includes("US")) return false;
+      if (selectedCountry === "IN" && !item.loc.includes("IN")) return false;
+      if (selectedCountry === "UK" && !item.loc.includes("UK")) return false;
+      if (selectedCountry === "ES" && !item.loc.includes("ES") && !item.loc.includes("SY")) return false;
+      if (selectedCountry === "FR" && !item.loc.includes("FR")) return false;
+    }
+
+    // 4. Credibility/Status filter
+    if (selectedCredibility !== "Any" && item.credibility !== selectedCredibility) return false;
+
+    // 5. Threat filter
+    if (selectedThreat !== "Any" && item.threat !== selectedThreat) return false;
+
+    return true;
   });
 
   return (
@@ -336,12 +363,7 @@ function Page() {
       <PageHeader
         title="Live Monitoring"
         description="Global, real-time intelligence stream — filter by platform, language, geography, or credibility."
-        badge={
-          <Badge variant="outline" className="gap-1.5 border-primary/30 bg-primary/5 text-primary">
-            <StatusDot />
-            Streaming
-          </Badge>
-        }
+        badge={<Badge variant="outline" className="gap-1.5 border-primary/30 bg-primary/5 text-primary"><StatusDot />Streaming</Badge>}
       />
 
       <Card className="mb-4">
@@ -388,14 +410,85 @@ function Page() {
                 {f}
               </Badge>
             ))}
-            <span className="mx-1 h-4 w-px bg-border" />
-            {["Language: EN", "Country: All", "Date: 24h", "Source: All", "Status: Any"].map(
-              (c) => (
-                <Badge key={c} variant="outline" className="cursor-pointer font-normal">
-                  {c}
-                </Badge>
-              ),
-            )}
+            {/* Advanced Filters */}
+            <div className="flex flex-wrap items-center gap-3 mt-4 pt-3 border-t">
+              <span className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1">
+                <Filter className="size-3" /> Advanced:
+              </span>
+              
+              <div className="flex items-center gap-1 text-[11px]">
+                <span className="text-muted-foreground">Lang:</span>
+                <select
+                  value={selectedLanguage}
+                  onChange={(e) => setSelectedLanguage(e.target.value)}
+                  className="bg-background border rounded px-1.5 py-0.5 text-[11px] text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="All">All</option>
+                  <option value="EN">English (EN)</option>
+                  <option value="ES">Spanish (ES)</option>
+                  <option value="FR">French (FR)</option>
+                  <option value="HI">Hindi (HI)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1 text-[11px]">
+                <span className="text-muted-foreground">Country:</span>
+                <select
+                  value={selectedCountry}
+                  onChange={(e) => setSelectedCountry(e.target.value)}
+                  className="bg-background border rounded px-1.5 py-0.5 text-[11px] text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="All">All Countries</option>
+                  <option value="US">United States (US)</option>
+                  <option value="IN">India (IN)</option>
+                  <option value="UK">United Kingdom (UK)</option>
+                  <option value="ES">Spain (ES)</option>
+                  <option value="FR">France (FR)</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1 text-[11px]">
+                <span className="text-muted-foreground">Date:</span>
+                <select
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="bg-background border rounded px-1.5 py-0.5 text-[11px] text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="24h">Last 24 hours</option>
+                  <option value="7d">Last 7 days</option>
+                  <option value="30d">Last 30 days</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1 text-[11px]">
+                <span className="text-muted-foreground">Status:</span>
+                <select
+                  value={selectedCredibility}
+                  onChange={(e) => setSelectedCredibility(e.target.value)}
+                  className="bg-background border rounded px-1.5 py-0.5 text-[11px] text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="Any">Any Credibility</option>
+                  <option value="verified">Verified Only</option>
+                  <option value="medium">Medium</option>
+                  <option value="unverified">Unverified Only</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-1 text-[11px]">
+                <span className="text-muted-foreground">Threat:</span>
+                <select
+                  value={selectedThreat}
+                  onChange={(e) => setSelectedThreat(e.target.value)}
+                  className="bg-background border rounded px-1.5 py-0.5 text-[11px] text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="Any">Any Threat</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -416,11 +509,10 @@ function Page() {
         <div className="grid gap-3 lg:grid-cols-2">
           {filteredStreams.map((r, i) => {
             const timeAgo = formatRelativeTime(r.pubDate);
+            const isBookmarked = bookmarks.includes(r.url);
+            const isTranslated = translatedUrls.includes(r.url);
             return (
-              <Card
-                key={`${r.author}-${i}`}
-                className="overflow-hidden bg-card/75 border border-primary/10 hover:border-primary/25 transition-all"
-              >
+              <Card key={`${r.author}-${i}`} className="overflow-hidden bg-card/75 border border-primary/10 hover:border-primary/25 transition-all">
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
                     <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
@@ -432,11 +524,8 @@ function Page() {
                         <span className="truncate text-xs text-muted-foreground">{r.handle}</span>
                       </div>
                       <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                        <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">
-                          {r.platform}
-                        </Badge>
-                        <MapPin className="size-3" />
-                        {r.loc}
+                        <Badge variant="secondary" className="h-4 px-1.5 text-[10px] font-medium">{r.platform}</Badge>
+                        <MapPin className="size-3" />{r.loc}
                         <span>·</span>
                         <span>{timeAgo} ago</span>
                       </div>
@@ -448,22 +537,22 @@ function Page() {
                     </div>
                   </div>
 
-                  <p className="mt-3 text-sm text-foreground/95 leading-relaxed">{r.text}</p>
+                  <p className="mt-3 text-sm text-foreground/95 leading-relaxed">{getPostText(r)}</p>
 
-                  {r.hasImage && (
-                    <div className="mt-3 h-32 rounded-md border bg-gradient-to-br from-[oklch(0.94_0.03_245)] via-[oklch(0.97_0.02_240)] to-[oklch(0.9_0.03_255)] flex items-center justify-center text-[10px] text-muted-foreground/60 font-mono">
-                      [Visual Signal Captured]
+                  {r.hasImage && r.imageUrl && (
+                    <div className="mt-3 h-48 rounded-md border overflow-hidden bg-muted relative group">
+                      <img 
+                        src={r.imageUrl} 
+                        alt="Visual Signal"
+                        className="w-full h-full object-cover group-hover:scale-102 transition-transform duration-300"
+                        referrerPolicy="no-referrer"
+                      />
                     </div>
                   )}
 
                   <div className="mt-3 flex flex-wrap items-center gap-1.5">
                     {r.tags.map((t: string) => (
-                      <span
-                        key={t}
-                        className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground"
-                      >
-                        {t}
-                      </span>
+                      <span key={t} className="rounded-full bg-muted px-2 py-0.5 text-[11px] text-muted-foreground">{t}</span>
                     ))}
                   </div>
 
@@ -479,19 +568,45 @@ function Page() {
                   </div>
 
                   <div className="mt-3 flex items-center gap-1">
-                    <Button size="sm" variant="ghost" className="h-8 gap-1.5">
-                      <Languages className="size-3.5" />
-                      Translate
+                    {r.language === "EN" ? (
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className="h-8 gap-1.5 text-xs text-muted-foreground/50 cursor-default"
+                        disabled
+                      >
+                        <Languages className="size-3.5" />
+                        English (Original)
+                      </Button>
+                    ) : (
+                      <Button 
+                        size="sm" 
+                        variant="ghost" 
+                        className={`h-8 gap-1.5 text-xs ${isTranslated ? 'text-primary bg-primary/10' : ''}`}
+                        onClick={() => toggleTranslate(r.url)}
+                      >
+                        <Languages className="size-3.5" />
+                        {isTranslated ? "Show Original" : "Translate to EN"}
+                      </Button>
+                    )}
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className="h-8 gap-1.5 text-xs"
+                      onClick={() => setExpandedPost(r)}
+                    >
+                      <Expand className="size-3.5" />Expand
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-8 gap-1.5">
-                      <Expand className="size-3.5" />
-                      Expand
+                    <Button 
+                      size="sm" 
+                      variant="ghost" 
+                      className={`h-8 gap-1.5 text-xs ${isBookmarked ? 'text-amber-500 bg-amber-500/10' : ''}`}
+                      onClick={() => toggleBookmark(r.url)}
+                    >
+                      <Bookmark className={`size-3.5 ${isBookmarked ? 'fill-amber-500' : ''}`} />
+                      {isBookmarked ? "Bookmarked" : "Bookmark"}
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-8 gap-1.5">
-                      <Bookmark className="size-3.5" />
-                      Bookmark
-                    </Button>
-                    <Button asChild size="sm" variant="ghost" className="ml-auto h-8 gap-1.5">
+                    <Button asChild size="sm" variant="ghost" className="ml-auto h-8 gap-1.5 text-xs">
                       <a href={r.url} target="_blank" rel="noopener noreferrer">
                         Open <ExternalLink className="size-3.5" />
                       </a>
@@ -501,6 +616,74 @@ function Page() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {/* Expanded Signal Details Modal */}
+      {expandedPost && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setExpandedPost(null)}>
+          <Card className="w-full max-w-2xl bg-card border border-primary/20 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="grid size-12 place-items-center rounded-full bg-primary/10 text-base font-semibold text-primary">
+                    {expandedPost.author.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">{expandedPost.author}</h3>
+                    <div className="text-xs text-muted-foreground">{expandedPost.handle}</div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1 items-end">
+                  <Tone tone={expandedPost.sentiment} />
+                  <Tone tone={expandedPost.threat} />
+                  <Tone tone={expandedPost.credibility} />
+                </div>
+              </div>
+
+              <div className="flex gap-2 text-xs text-muted-foreground border-b pb-3">
+                <Badge variant="secondary">{expandedPost.platform}</Badge>
+                <span className="flex items-center gap-1"><MapPin className="size-3" />{expandedPost.loc}</span>
+                <span>·</span>
+                <span>{new Date(expandedPost.pubDate).toLocaleString()}</span>
+              </div>
+
+              <p className="text-base text-foreground/90 leading-relaxed whitespace-pre-wrap">{getPostText(expandedPost)}</p>
+
+              {expandedPost.hasImage && expandedPost.imageUrl && (
+                <div className="rounded-lg overflow-hidden border border-primary/10 bg-muted">
+                  <img 
+                    src={expandedPost.imageUrl} 
+                    alt={expandedPost.author} 
+                    className="w-full h-auto object-cover max-h-[350px]"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-1.5 pt-2">
+                {expandedPost.tags.map((t: string) => (
+                  <Badge key={t} variant="outline" className="text-xs">{t}</Badge>
+                ))}
+              </div>
+
+              <div className="rounded-md border border-primary/20 bg-primary/5 p-3 text-xs space-y-1">
+                <span className="font-semibold text-primary">AI Signal Analysis Report</span>
+                <p className="text-foreground/80">
+                  This intelligence signal has been captured in the real-time stream. Sentiment analysis is classified as {expandedPost.sentiment}. Public threat assessment indicates a {expandedPost.threat} threat level. Target account source credibility is labeled {expandedPost.credibility}.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t">
+                <Button size="sm" variant="outline" onClick={() => setExpandedPost(null)}>Close</Button>
+                <Button asChild size="sm" className="gap-1.5">
+                  <a href={expandedPost.url} target="_blank" rel="noopener noreferrer">
+                    Open Original <ExternalLink className="size-3.5" />
+                  </a>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </AppShell>

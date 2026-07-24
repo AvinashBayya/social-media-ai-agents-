@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Welcome to your Lovable project
 
 This project was built with [Lovable](https://lovable.dev).
@@ -15,8 +16,8 @@ Open your project in the [Lovable editor](https://lovable.dev) and keep building
 Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
-git clone https://github.com/AvinashBayya/social-media-ai-agents-
-cd social-media-ai-agents-
+git clone <this-repository-url>
+cd <repository-name>
 npm i
 npm run dev
 ```
@@ -27,3 +28,6 @@ npm run dev
 - TypeScript
 - React
 - Tailwind CSS
+=======
+# social-media-ai-agents-
+>>>>>>> b39795b4dfc74569d698c0503760e51a9065fbc8

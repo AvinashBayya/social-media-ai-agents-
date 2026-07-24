@@ -19,6 +19,7 @@ import { Route as NetworkRouteImport } from './routes/network'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as OsintRouteImport } from './routes/osint'
 import { Route as SentimentRouteImport } from './routes/sentiment'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SocialRouteImport } from './routes/social'
 import { Route as SubjectsRouteImport } from './routes/subjects'
 import { Route as TimelineRouteImport } from './routes/timeline'
@@ -75,6 +76,11 @@ const SentimentRoute = SentimentRouteImport.update({
   path: '/sentiment',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SocialRoute = SocialRouteImport.update({
   id: '/social',
   path: '/social',
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/news': typeof NewsRoute
   '/osint': typeof OsintRoute
   '/sentiment': typeof SentimentRoute
+  '/settings': typeof SettingsRoute
   '/social': typeof SocialRoute
   '/subjects': typeof SubjectsRoute
   '/timeline': typeof TimelineRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/news': typeof NewsRoute
   '/osint': typeof OsintRoute
   '/sentiment': typeof SentimentRoute
+  '/settings': typeof SettingsRoute
   '/social': typeof SocialRoute
   '/subjects': typeof SubjectsRoute
   '/timeline': typeof TimelineRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/news': typeof NewsRoute
   '/osint': typeof OsintRoute
   '/sentiment': typeof SentimentRoute
+  '/settings': typeof SettingsRoute
   '/social': typeof SocialRoute
   '/subjects': typeof SubjectsRoute
   '/timeline': typeof TimelineRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/osint'
     | '/sentiment'
+    | '/settings'
     | '/social'
     | '/subjects'
     | '/timeline'
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/osint'
     | '/sentiment'
+    | '/settings'
     | '/social'
     | '/subjects'
     | '/timeline'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/osint'
     | '/sentiment'
+    | '/settings'
     | '/social'
     | '/subjects'
     | '/timeline'
@@ -218,6 +230,7 @@ export interface RootRouteChildren {
   NewsRoute: typeof NewsRoute
   OsintRoute: typeof OsintRoute
   SentimentRoute: typeof SentimentRoute
+  SettingsRoute: typeof SettingsRoute
   SocialRoute: typeof SocialRoute
   SubjectsRoute: typeof SubjectsRoute
   TimelineRoute: typeof TimelineRoute
@@ -297,6 +310,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SentimentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/social': {
       id: '/social'
       path: '/social'
@@ -346,6 +366,7 @@ const rootRouteChildren: RootRouteChildren = {
   NewsRoute: NewsRoute,
   OsintRoute: OsintRoute,
   SentimentRoute: SentimentRoute,
+  SettingsRoute: SettingsRoute,
   SocialRoute: SocialRoute,
   SubjectsRoute: SubjectsRoute,
   TimelineRoute: TimelineRoute,
