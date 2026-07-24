@@ -71,81 +71,88 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  /* Light intelligence theme: cool near-white surfaces, deep slate text, blue accents. */
-  --background: oklch(0.985 0.005 240);
-  --foreground: oklch(0.18 0.03 250);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.03 250);
+  --radius: 4px; /* Crisp square-ish corners for cyberpunk command aesthetics */
+  /* Tactical cool light mode */
+  --background: oklch(0.96 0.01 240);
+  --foreground: oklch(0.18 0.03 240);
+  --card: oklch(1 0 0 / 90%);
+  --card-foreground: oklch(0.18 0.03 240);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.03 250);
-  --primary: oklch(0.6 0.19 255);
-  --primary-foreground: oklch(0.99 0.005 240);
-  --secondary: oklch(0.965 0.01 240);
-  --secondary-foreground: oklch(0.22 0.03 250);
-  --muted: oklch(0.965 0.01 240);
-  --muted-foreground: oklch(0.5 0.02 250);
-  --accent: oklch(0.94 0.03 245);
-  --accent-foreground: oklch(0.22 0.05 255);
-  --destructive: oklch(0.62 0.23 27);
+  --popover-foreground: oklch(0.18 0.03 240);
+  --primary: oklch(0.55 0.16 150); /* Forest green */
+  --primary-foreground: oklch(0.98 0.005 240);
+  --secondary: oklch(0.92 0.01 240);
+  --secondary-foreground: oklch(0.2 0.02 240);
+  --muted: oklch(0.92 0.01 240);
+  --muted-foreground: oklch(0.45 0.02 240);
+  --accent: oklch(0.52 0.15 210); /* Slate blue */
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.6 0.22 25);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.92 0.01 245);
-  --input: oklch(0.92 0.01 245);
-  --ring: oklch(0.6 0.19 255);
-  --chart-1: oklch(0.6 0.19 255); /* blue */
-  --chart-2: oklch(0.7 0.16 210); /* cyan */
-  --chart-3: oklch(0.7 0.17 145); /* green */
-  --chart-4: oklch(0.78 0.16 85); /* amber */
-  --chart-5: oklch(0.62 0.23 27); /* red */
-  --success: oklch(0.68 0.17 145);
-  --success-foreground: oklch(0.99 0 0);
-  --warning: oklch(0.78 0.16 85);
-  --warning-foreground: oklch(0.2 0.05 60);
-  --info: oklch(0.72 0.15 210);
-  --info-foreground: oklch(0.99 0 0);
-  --sidebar: oklch(0.995 0.003 240);
-  --sidebar-foreground: oklch(0.22 0.03 250);
-  --sidebar-primary: oklch(0.6 0.19 255);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.955 0.015 245);
-  --sidebar-accent-foreground: oklch(0.22 0.05 255);
-  --sidebar-border: oklch(0.92 0.01 245);
-  --sidebar-ring: oklch(0.6 0.19 255);
+  --border: oklch(0.85 0.01 240);
+  --input: oklch(0.88 0.01 240);
+  --ring: oklch(0.55 0.16 150);
+  --chart-1: oklch(0.52 0.15 210);
+  --chart-2: oklch(0.55 0.16 150);
+  --chart-3: oklch(0.72 0.15 85);
+  --chart-4: oklch(0.6 0.22 25);
+  --chart-5: oklch(0.45 0.02 240);
+  --success: oklch(0.55 0.16 150);
+  --success-foreground: oklch(0.98 0 0);
+  --warning: oklch(0.72 0.15 85);
+  --warning-foreground: oklch(0.15 0.02 85);
+  --info: oklch(0.52 0.15 210);
+  --info-foreground: oklch(0.98 0 0);
+  --sidebar: oklch(0.98 0.005 240);
+  --sidebar-foreground: oklch(0.18 0.03 240);
+  --sidebar-primary: oklch(0.55 0.16 150);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.92 0.01 240);
+  --sidebar-accent-foreground: oklch(0.18 0.03 240);
+  --sidebar-border: oklch(0.85 0.01 240);
+  --sidebar-ring: oklch(0.55 0.16 150);
 }
 
 .dark {
-  --background: oklch(0.129 0.042 264.695);
-  --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.208 0.042 265.755);
-  --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.208 0.042 265.755);
-  --popover-foreground: oklch(0.984 0.003 247.858);
-  --primary: oklch(0.929 0.013 255.508);
-  --primary-foreground: oklch(0.208 0.042 265.755);
-  --secondary: oklch(0.279 0.041 260.031);
-  --secondary-foreground: oklch(0.984 0.003 247.858);
-  --muted: oklch(0.279 0.041 260.031);
-  --muted-foreground: oklch(0.704 0.04 256.788);
-  --accent: oklch(0.279 0.041 260.031);
-  --accent-foreground: oklch(0.984 0.003 247.858);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.984 0.003 247.858);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.551 0.027 264.364);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.208 0.042 265.755);
-  --sidebar-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-accent: oklch(0.279 0.041 260.031);
-  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.551 0.027 264.364);
+  /* Cyberpunk Tactical / Combat Command Dark Theme: Deep charcoal with glowing borders and neon accents */
+  --background: oklch(0.11 0.01 250);
+  --foreground: oklch(0.94 0.03 150); /* Crisp light cyan-green text */
+  --card: oklch(0.14 0.015 250 / 75%); /* Glassmorphic card surfaces */
+  --card-foreground: oklch(0.92 0.03 150);
+  --popover: oklch(0.12 0.01 250);
+  --popover-foreground: oklch(0.94 0.03 150);
+  --primary: oklch(0.78 0.16 150); /* Glowing Neon Green / Emerald (#10B981) */
+  --primary-foreground: oklch(0.08 0.02 150); /* Jet black text on neon badges */
+  --secondary: oklch(0.18 0.04 220); /* Deep cobalt teal */
+  --secondary-foreground: oklch(0.82 0.06 220);
+  --muted: oklch(0.16 0.02 250);
+  --muted-foreground: oklch(0.62 0.04 150);
+  --accent: oklch(0.72 0.16 210); /* Glowing Neon Cyan / Light Cobalt (#38BDF8) */
+  --accent-foreground: oklch(0.08 0.02 210);
+  --destructive: oklch(0.64 0.22 25); /* Tactical Alert Red */
+  --destructive-foreground: oklch(0.98 0.01 25);
+  --border: oklch(0.32 0.06 150 / 35%); /* Cyber-glow border */
+  --input: oklch(0.16 0.02 250 / 80%);
+  --ring: oklch(0.78 0.16 150);
+  --chart-1: oklch(0.72 0.16 210); /* Cyan */
+  --chart-2: oklch(0.78 0.16 150); /* Emerald */
+  --chart-3: oklch(0.82 0.15 85);  /* Yellow/Amber warnings */
+  --chart-4: oklch(0.64 0.22 25);  /* Critical red */
+  --chart-5: oklch(0.62 0.12 280); /* Violet/purple mystery */
+  --success: oklch(0.78 0.16 150);
+  --success-foreground: oklch(0.08 0.02 150);
+  --warning: oklch(0.82 0.15 85);
+  --warning-foreground: oklch(0.12 0.02 85);
+  --info: oklch(0.72 0.16 210);
+  --info-foreground: oklch(0.08 0.02 210);
+  --sidebar: oklch(0.12 0.015 250);
+  --sidebar-foreground: oklch(0.92 0.03 150);
+  --sidebar-primary: oklch(0.78 0.16 150);
+  --sidebar-primary-foreground: oklch(0.08 0.02 150);
+  --sidebar-accent: oklch(0.16 0.03 220);
+  --sidebar-accent-foreground: oklch(0.82 0.06 220);
+  --sidebar-border: oklch(0.32 0.06 150 / 30%);
+  --sidebar-ring: oklch(0.78 0.16 150);
 }
 
 @layer base {
@@ -156,5 +163,38 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
+    background-image: 
+      radial-gradient(var(--color-border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--color-background) 85%, oklch(0.15 0.01 250 / 20%) 100%);
+    background-size: 24px 24px, 100% 100%;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Make all dashboard cards feel glassmorphic and glowing */
+  .card, 
+  [class*="bg-card"] {
+    backdrop-filter: blur(16px);
+    border: 1px solid var(--color-border) !important;
+    box-shadow: 0 4px 20px 0 oklch(0 0 0 / 40%), inset 0 0 0 1px oklch(1 1 1 / 2%);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Monospace typography for data values & threat indicators */
+  .font-mono,
+  table,
+  .font-semibold,
+  [class*="text-xs"],
+  [class*="text-[10px]"] {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace !important;
+    letter-spacing: -0.01em;
+  }
+
+  /* Glow effects */
+  .glow-text-primary {
+    text-shadow: 0 0 10px oklch(var(--primary) / 45%);
+  }
+
+  .glow-text-accent {
+    text-shadow: 0 0 10px oklch(var(--accent) / 45%);
   }
 }
