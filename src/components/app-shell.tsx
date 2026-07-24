@@ -140,7 +140,7 @@ function AppSidebar() {
           className="mx-1 mb-1 flex items-center justify-between rounded-md border bg-card px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent group-data-[collapsible=icon]:hidden"
         >
           <span className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-[oklch(0.68_0.17_145)]" />
+            <span className="size-2 rounded-full bg-success animate-pulse" />
             Global Ops · Tier 1
           </span>
           <ChevronDown className="size-3.5" />
@@ -269,10 +269,10 @@ export function StatusDot({
   tone?: "success" | "warning" | "danger" | "info" | "muted";
 }) {
   const map: Record<string, string> = {
-    success: "bg-[oklch(0.68_0.17_145)]",
-    warning: "bg-[oklch(0.78_0.16_85)]",
-    danger: "bg-[oklch(0.62_0.23_27)]",
-    info: "bg-[oklch(0.72_0.15_210)]",
+    success: "bg-success",
+    warning: "bg-warning",
+    danger: "bg-destructive",
+    info: "bg-info",
     muted: "bg-muted-foreground/40",
   };
   return (
@@ -301,12 +301,11 @@ export function toneBadge(
 } {
   const map = {
     positive: {
-      className:
-        "bg-[oklch(0.68_0.17_145)]/12 text-[oklch(0.4_0.17_145)] border-[oklch(0.68_0.17_145)]/25",
+      className: "bg-success/10 text-success border-success/20",
       label: "Positive",
     },
     negative: {
-      className: "bg-destructive/10 text-destructive border-destructive/25",
+      className: "bg-destructive/10 text-destructive border-destructive/20",
       label: "Negative",
     },
     neutral: { className: "bg-muted text-muted-foreground border-border", label: "Neutral" },
@@ -315,23 +314,19 @@ export function toneBadge(
       label: "Critical",
     },
     high: {
-      className:
-        "bg-[oklch(0.78_0.16_50)]/15 text-[oklch(0.5_0.18_50)] border-[oklch(0.78_0.16_50)]/30",
+      className: "bg-accent/15 text-accent border-accent/30",
       label: "High",
     },
     medium: {
-      className:
-        "bg-[oklch(0.78_0.16_85)]/15 text-[oklch(0.5_0.15_75)] border-[oklch(0.78_0.16_85)]/35",
+      className: "bg-warning/10 text-warning border-warning/20",
       label: "Medium",
     },
     low: {
-      className:
-        "bg-[oklch(0.72_0.15_210)]/12 text-[oklch(0.45_0.15_240)] border-[oklch(0.72_0.15_210)]/30",
+      className: "bg-info/10 text-info border-info/20",
       label: "Low",
     },
     verified: {
-      className:
-        "bg-[oklch(0.68_0.17_145)]/12 text-[oklch(0.4_0.17_145)] border-[oklch(0.68_0.17_145)]/25",
+      className: "bg-success/10 text-success border-success/20",
       label: "Verified",
     },
     unverified: { className: "bg-muted text-muted-foreground border-border", label: "Unverified" },
