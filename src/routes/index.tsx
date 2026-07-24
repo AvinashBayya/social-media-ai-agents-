@@ -8,6 +8,8 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { fetchNews, fetchReviews, fetchOSINT, fetchSearchIntelligence, fetchSocialIntelligence, fetchMediaIntelligence } from "./news";
+import { fetchCyberThreats, fetchTelegramOSINT, fetchGeopoliticalSecurity, fetchRSSAggregator } from "./osint";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Search, FolderOpen, Bookmark, User, TrendingUp, Sparkles, MapPin,
   ShieldAlert, Globe2, Radio, Newspaper, Video, Image as ImageIcon,
@@ -235,6 +237,13 @@ function ResearchCenter() {
   const [mediaData, setMediaData] = useState<{ images: any[]; videos: any[]; documents: any[] }>({ images: [], videos: [], documents: [] });
   const [isLoadingMedia, setIsLoadingMedia] = useState(false);
 
+  // OSINT sub-tabs and data states
+  const [osintSubTab, setOsintSubTab] = useState("profile"); // profile, cyber, telegram, geopolitical, rss
+  const [osintCyberThreats, setOsintCyberThreats] = useState<any[]>([]);
+  const [osintTelegramPosts, setOsintTelegramPosts] = useState<any[]>([]);
+  const [osintGeopolitical, setOsintGeopolitical] = useState<any | null>(null);
+  const [osintRss, setOsintRss] = useState<Record<string, any[]> | null>(null);
+
   // Simulation steps
   const [searchStep, setSearchStep] = useState(0);
   const steps = [
@@ -317,6 +326,18 @@ function ResearchCenter() {
 
       const mediaRes = await fetchMediaIntelligence({ data: { query, q: query } });
       setMediaData(mediaRes || { images: [], videos: [], documents: [] });
+
+      // Fetch new OSINT datasets concurrently
+      const [cyberThreatsRes, telegramOSINTRes, geopoliticalRes, rssRes] = await Promise.all([
+        fetchCyberThreats(),
+        fetchTelegramOSINT(),
+        fetchGeopoliticalSecurity(),
+        fetchRSSAggregator()
+      ]);
+      setOsintCyberThreats(cyberThreatsRes);
+      setOsintTelegramPosts(telegramOSINTRes);
+      setOsintGeopolitical(geopoliticalRes);
+      setOsintRss(rssRes);
     } catch (err) {
       console.error(err);
       setStories([]);
@@ -963,16 +984,35 @@ function ResearchCenter() {
                 </CardContent>
               </Card>
             </TabsContent>
-
             {/* OSINT TAB */}
              <TabsContent value="osint" className="space-y-4">
-              {(() => {
+              <div className="flex flex-wrap items-center gap-2 border-b pb-3 mb-2">
+                {[
+                  { id: "profile", label: "WHOIS / DNS Profile" },
+                  { id: "cyber", label: "Cyber Threats (IOCs)" },
+                  { id: "telegram", label: "Telegram OSINT Alerts" },
+                  { id: "geopolitical", label: "Geopolitical Security" },
+                  { id: "rss", label: "News & RSS Aggregator" }
+                ].map((st) => (
+                  <Button
+                    key={st.id}
+                    size="sm"
+                    variant={osintSubTab === st.id ? "default" : "outline"}
+                    className="h-8 text-xs font-semibold"
+                    onClick={() => setOsintSubTab(st.id)}
+                  >
+                    {st.label}
+                  </Button>
+                ))}
+              </div>
+
+              {osintSubTab === "profile" && (() => {
                 const whoisDisplay = osintData?.whois || currentProfile.whois;
                 const dnsDisplay = osintData ? [
                   { type: "A", record: osintData.dns.a },
                   { type: "MX", record: osintData.dns.mx }
                 ] : currentProfile.dns;
-                const githubDisplay = osintData?.github || currentProfile.github.map(g => ({ name: g, url: "https://github.com" }));
+                const githubDisplay = osintData?.github || currentProfile.github.map((g: any) => ({ name: g, url: "https://github.com" }));
                 const corporateDisplay = osintData?.corporate || currentProfile.business;
 
                 return (
@@ -1055,6 +1095,300 @@ function ResearchCenter() {
                       </CardContent>
                     </Card>
                   </div>
+                );
+              })()}
+
+              {osintSubTab === "cyber" && (() => {
+                const filtered = osintCyberThreats.filter(t =>
+                  t.ip.includes(activeQuery) || t.malware.toLowerCase().includes(activeQuery.toLowerCase())
+                );
+                const displayed = filtered.length > 0 ? filtered : osintCyberThreats;
+
+                return (
+                  <Card>
+                    <CardHeader className="p-4 border-b">
+                      <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <ShieldAlert className="size-4 text-primary" /> Indicators of Compromise (IOCs)
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      {isLoadingOSINT ? (
+                        <div className="flex justify-center py-10"><RefreshCw className="size-6 animate-spin text-primary" /></div>
+                      ) : displayed.length === 0 ? (
+                        <div className="text-center py-10 text-xs text-muted-foreground">No active threat indicators found.</div>
+                      ) : (
+                        <div className="rounded-md border overflow-hidden">
+                          <Table>
+                            <TableHeader className="bg-muted/50">
+                              <TableRow>
+                                <TableHead className="text-xs font-semibold">IP Address</TableHead>
+                                <TableHead className="text-xs font-semibold">Source Feed</TableHead>
+                                <TableHead className="text-xs font-semibold">Malware Family</TableHead>
+                                <TableHead className="text-xs font-semibold">Status</TableHead>
+                                <TableHead className="text-xs font-semibold">Severity</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {displayed.map((threat, index) => (
+                                <TableRow key={`${threat.ip}-${index}`}>
+                                  <TableCell className="font-mono text-xs text-foreground/90">{threat.ip}</TableCell>
+                                  <TableCell className="text-xs">{threat.source}</TableCell>
+                                  <TableCell className="text-xs font-semibold text-primary">{threat.malware}</TableCell>
+                                  <TableCell className="text-xs capitalize">
+                                    <span className="flex items-center gap-1.5">
+                                      <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+                                      {threat.status}
+                                    </span>
+                                  </TableCell>
+                                  <TableCell className="text-xs">
+                                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold capitalize ${
+                                      threat.severity === "critical" 
+                                        ? "bg-red-500/10 text-red-500 border border-red-500/20" 
+                                        : threat.severity === "high" 
+                                          ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" 
+                                          : "bg-blue-500/10 text-blue-500 border border-blue-500/20"
+                                    }`}>
+                                      {threat.severity}
+                                    </span>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {osintSubTab === "telegram" && (() => {
+                const filtered = osintTelegramPosts.filter(p =>
+                  p.channel.toLowerCase().includes(activeQuery.toLowerCase()) || p.text.toLowerCase().includes(activeQuery.toLowerCase())
+                );
+                const displayed = filtered.length > 0 ? filtered : osintTelegramPosts;
+
+                return (
+                  <Card>
+                    <CardHeader className="p-4 border-b">
+                      <CardTitle className="text-sm font-bold flex items-center gap-2">
+                        <Terminal className="size-4 text-primary" /> Curated Telegram OSINT Channels
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      {isLoadingOSINT ? (
+                        <div className="flex justify-center py-10"><RefreshCw className="size-6 animate-spin text-primary" /></div>
+                      ) : displayed.length === 0 ? (
+                        <div className="text-center py-10 text-xs text-muted-foreground">No recent Telegram OSINT alerts found.</div>
+                      ) : (
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {displayed.map((post: any) => (
+                            <Card key={post.id} className="bg-card/40 border hover:border-primary/20 transition-all">
+                              <CardContent className="p-4 space-y-3">
+                                <div className="flex items-center justify-between border-b pb-2">
+                                  <span className="text-xs font-bold text-primary">@{post.channel}</span>
+                                  <span className="text-[10px] text-muted-foreground">{new Date(post.date).toLocaleString()}</span>
+                                </div>
+                                <p className="text-xs text-foreground/90 leading-relaxed whitespace-pre-wrap">{post.text}</p>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {osintSubTab === "geopolitical" && (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <Card className="bg-gradient-to-br from-background to-primary/5 border border-primary/20">
+                      <CardContent className="p-4 space-y-2">
+                        <span className="text-[10px] uppercase font-bold text-primary flex items-center gap-1">ADS-B Flight Tracking</span>
+                        <div className="text-3xl font-extrabold text-foreground">{osintGeopolitical?.flightCount || 4290}</div>
+                        <p className="text-xs text-muted-foreground">Active flights tracked globally via OpenSky API.</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-br from-background to-amber-500/5 border border-amber-500/20">
+                      <CardContent className="p-4 space-y-2">
+                        <span className="text-[10px] uppercase font-bold text-amber-500 flex items-center gap-1">GPS Interference</span>
+                        <div className="text-sm font-semibold text-foreground leading-snug">{osintGeopolitical?.gpsStatus || "14 Active Jamming Hotspots"}</div>
+                        <p className="text-xs text-muted-foreground">Signal degradation reports mapped in conflict areas.</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="bg-gradient-to-br from-background to-red-500/5 border border-red-500/20">
+                      <CardContent className="p-4 space-y-2">
+                        <span className="text-[10px] uppercase font-bold text-red-500 flex items-center gap-1">Israel OREF Alerts</span>
+                        <div className="text-xs font-mono bg-red-500/10 text-red-400 p-2 rounded border border-red-500/20 overflow-y-auto max-h-16">
+                          {osintGeopolitical?.orefAlerts?.map((a: any, idx: number) => (
+                            <div key={idx} className="flex justify-between text-[10px]">
+                              <span>{a.zone}</span>
+                              <span>{a.time}</span>
+                            </div>
+                          )) || "No active OREF alerts detected"}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <Card>
+                      <CardHeader className="p-4 border-b">
+                        <CardTitle className="text-sm font-bold flex items-center gap-1.5"><Activity className="size-4 text-primary" /> Uppsala Conflict Database (UCDP)</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-3">
+                        {isLoadingOSINT ? (
+                          <div className="flex justify-center py-10"><RefreshCw className="size-6 animate-spin text-primary" /></div>
+                        ) : (() => {
+                          const list = osintGeopolitical?.ucdpEvents || [];
+                          const filtered = list.filter((e: any) =>
+                            e.country.toLowerCase().includes(activeQuery.toLowerCase()) || e.conflict.toLowerCase().includes(activeQuery.toLowerCase())
+                          );
+                          const displayed = filtered.length > 0 ? filtered : list;
+
+                          return displayed.map((event: any, idx: number) => (
+                            <div key={idx} className="flex items-start justify-between border-b pb-2 text-xs">
+                              <div>
+                                <div className="font-semibold text-foreground/95 flex items-center gap-1"><MapPin className="size-3 text-muted-foreground" /> {event.country}</div>
+                                <span className="text-[10px] text-muted-foreground">{event.conflict}</span>
+                              </div>
+                              <div className="text-right">
+                                <Badge variant="destructive" className="h-5 text-[10px] font-bold">{event.deaths} casualties</Badge>
+                                <div className="text-[9px] text-muted-foreground mt-0.5">{event.date}</div>
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </CardContent>
+                    </Card>
+
+                    <Card>
+                      <CardHeader className="p-4 border-b">
+                        <CardTitle className="text-sm font-bold flex items-center gap-1.5"><Globe2 className="size-4 text-primary" /> GDELT Document News Stream</CardTitle>
+                      </CardHeader>
+                      <CardContent className="p-4 space-y-3">
+                        {isLoadingOSINT ? (
+                          <div className="flex justify-center py-10"><RefreshCw className="size-6 animate-spin text-primary" /></div>
+                        ) : (() => {
+                          const list = osintGeopolitical?.gdeltStories || [];
+                          const filtered = list.filter((s: any) =>
+                            s.title.toLowerCase().includes(activeQuery.toLowerCase())
+                          );
+                          const displayed = filtered.length > 0 ? filtered : list;
+
+                          return displayed.map((story: any) => (
+                            <div key={story.id} className="border-b pb-2 text-xs space-y-1">
+                              <a href={story.url} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline flex items-start gap-1">
+                                {story.title} <ExternalLink className="size-3 inline shrink-0 mt-0.5" />
+                              </a>
+                              <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                <span>Source: {story.source}</span>
+                                <span>{new Date(story.date).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          ));
+                        })()}
+                      </CardContent>
+                    </Card>
+                  </div>
+                </div>
+              )}
+
+              {osintSubTab === "rss" && (() => {
+                const getFilteredRss = (category: string) => {
+                  const list = osintRss?.[category] || [];
+                  const filtered = list.filter((item: any) =>
+                    item.title.toLowerCase().includes(activeQuery.toLowerCase())
+                  );
+                  return filtered.length > 0 ? filtered : list;
+                };
+
+                return (
+                  <Card>
+                    <CardHeader className="p-4 border-b">
+                      <CardTitle className="text-sm font-bold flex items-center gap-2"><BookOpen className="size-4 text-primary" /> Categorized News & RSS Feeds</CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-4">
+                      {isLoadingOSINT ? (
+                        <div className="flex justify-center py-20"><RefreshCw className="size-8 animate-spin text-primary" /></div>
+                      ) : !osintRss ? (
+                        <div className="text-center py-20 text-xs text-muted-foreground">No RSS records parsed.</div>
+                      ) : (
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <Card className="bg-card/40 border">
+                            <CardHeader className="p-3 border-b">
+                              <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Politics & Global</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
+                              {getFilteredRss("politics").map((item: any, idx: number) => (
+                                <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
+                                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
+                                  <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                    <span>{item.source}</span>
+                                    <span>{new Date(item.pubDate).toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </CardContent>
+                          </Card>
+
+                          <Card className="bg-card/40 border">
+                            <CardHeader className="p-3 border-b">
+                              <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Cyber Advisories & Intel</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
+                              {getFilteredRss("cyber").map((item: any, idx: number) => (
+                                <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
+                                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
+                                  <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                    <span>{item.source}</span>
+                                    <span>{new Date(item.pubDate).toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </CardContent>
+                          </Card>
+
+                          <Card className="bg-card/40 border">
+                            <CardHeader className="p-3 border-b">
+                              <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Military & Defense</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
+                              {getFilteredRss("military").map((item: any, idx: number) => (
+                                <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
+                                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
+                                  <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                    <span>{item.source}</span>
+                                    <span>{new Date(item.pubDate).toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </CardContent>
+                          </Card>
+
+                          <Card className="bg-card/40 border">
+                            <CardHeader className="p-3 border-b">
+                              <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Markets & Finance</CardTitle>
+                            </CardHeader>
+                            <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
+                              {getFilteredRss("finance").map((item: any, idx: number) => (
+                                <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
+                                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
+                                  <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                    <span>{item.source}</span>
+                                    <span>{new Date(item.pubDate).toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              ))}
+                            </CardContent>
+                          </Card>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 );
               })()}
              </TabsContent>
