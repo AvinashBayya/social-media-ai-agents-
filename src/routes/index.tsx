@@ -15,7 +15,7 @@ import {
   ShieldAlert, Globe2, Radio, Newspaper, Video, Image as ImageIcon,
   MessageCircle, ExternalLink, Calendar, Network, FileText, Activity,
   Terminal, CheckCircle2, ChevronRight, Download, RefreshCw, Plus, Clock,
-  ZoomIn, ZoomOut, Maximize2, Share2, GitBranch, ArrowUpRight, Bot
+  ZoomIn, ZoomOut, Maximize2, Share2, GitBranch, ArrowUpRight, Bot, BookOpen
 } from "lucide-react";
 import {
   Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
