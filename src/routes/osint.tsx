@@ -52,60 +52,67 @@ export function matchQuery(text: string, query: string): boolean {
 export const fetchCyberThreats = createServerFn({ method: "GET" })
   .validator((data: { q?: string; query?: string } | undefined) => data)
   .handler(async ({ data }) => {
-    const threats: any[] = [];
+    let threats: any[] = [];
     const query = data?.query || data?.q || "";
     
-    // 1. Feodo Tracker ( abuse.ch C2 botnet IPs )
-    try {
-      const res = await fetch("https://feodotracker.abuse.ch/downloads/ipblocklist.json", {
-        signal: AbortSignal.timeout(5000),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const items = Array.isArray(data) ? data.slice(0, 40) : [];
-        for (const item of items) {
-          threats.push({
+    const fetchFeodo = async () => {
+      try {
+        const res = await fetch("https://feodotracker.abuse.ch/downloads/ipblocklist.json", {
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const items = Array.isArray(data) ? data.slice(0, 40) : [];
+          return items.map((item: any) => ({
             ip: item.ip_address || item.dst_ip || "192.168.1.1",
             source: "Feodo Tracker",
             malware: item.malware || "Unknown botnet",
             status: item.status || "online",
             severity: (item.status === "online" && /emotet|qakbot/i.test(item.malware || "")) ? "critical" : "high",
             date: item.last_online || new Date().toISOString(),
-          });
+          }));
         }
+      } catch (err) {
+        console.error("Feodo fetch failed:", err);
       }
-    } catch (err) {
-      console.error("Feodo fetch failed:", err);
-    }
+      return [];
+    };
 
-    // 2. C2IntelFeeds ( CSV of C2 IPs )
-    try {
-      const res = await fetch("https://raw.githubusercontent.com/drb-ra/C2IntelFeeds/master/feeds/IPC2s-30day.csv", {
-        signal: AbortSignal.timeout(5000),
-      });
-      if (res.ok) {
-        const text = await res.text();
-        const lines = text.split("\n").slice(0, 40);
-        for (const line of lines) {
-          if (!line || line.startsWith("#")) continue;
-          const parts = line.split(",");
-          if (parts.length >= 2) {
-            const ip = parts[0].trim();
-            const desc = parts[1].trim();
-            threats.push({
-              ip,
-              source: "C2IntelFeeds",
-              malware: desc.replace("Possible ", "").replace(" C2 IP", ""),
-              status: "active",
-              severity: desc.toLowerCase().includes("cobalt strike") ? "high" : "medium",
-              date: new Date().toISOString(),
-            });
+    const fetchC2Feeds = async () => {
+      try {
+        const res = await fetch("https://raw.githubusercontent.com/drb-ra/C2IntelFeeds/master/feeds/IPC2s-30day.csv", {
+          signal: AbortSignal.timeout(8000),
+        });
+        if (res.ok) {
+          const text = await res.text();
+          const lines = text.split("\n").slice(0, 40);
+          const list: any[] = [];
+          for (const line of lines) {
+            if (!line || line.startsWith("#")) continue;
+            const parts = line.split(",");
+            if (parts.length >= 2) {
+              const ip = parts[0].trim();
+              const desc = parts[1].trim();
+              list.push({
+                ip,
+                source: "C2IntelFeeds",
+                malware: desc.replace("Possible ", "").replace(" C2 IP", ""),
+                status: "active",
+                severity: desc.toLowerCase().includes("cobalt strike") ? "high" : "medium",
+                date: new Date().toISOString(),
+              });
+            }
           }
+          return list;
         }
+      } catch (err) {
+        console.error("C2IntelFeeds fetch failed:", err);
       }
-    } catch (err) {
-      console.error("C2IntelFeeds fetch failed:", err);
-    }
+      return [];
+    };
+
+    const [feodoList, c2List] = await Promise.all([fetchFeodo(), fetchC2Feeds()]);
+    threats = [...feodoList, ...c2List];
 
     // Fallback mock threats if both failed (e.g. offline dev mode)
     if (threats.length === 0) {
@@ -169,8 +176,10 @@ export const fetchTelegramOSINT = createServerFn({ method: "GET" })
       }
     };
 
-    for (const ch of channels) {
-      const posts = await scrapeTelegramChannel(ch);
+    const results = await Promise.all(
+      channels.map(ch => scrapeTelegramChannel(ch))
+    );
+    for (const posts of results) {
       allPosts = allPosts.concat(posts);
     }
     
@@ -192,33 +201,99 @@ export const fetchGeopoliticalSecurity = createServerFn({ method: "GET" })
   .validator((data: { q?: string; query?: string } | undefined) => data)
   .handler(async ({ data }) => {
     const query = data?.query || data?.q || "";
-    let ucdpEvents: any[] = [];
-    let gdeltStories: any[] = [];
-    let flightCount = 4290;
     
-    // 1. UCDP GED events ( Uppsala Conflict Data Program )
-    try {
-      const res = await fetch("https://ucdpapi.pcr.uu.se/api/gedevents/24.1?pagesize=30", {
-        headers: { "User-Agent": "Mozilla/5.0" },
-        signal: AbortSignal.timeout(5000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const list = data.Result || [];
-        ucdpEvents = list.map((e: any) => ({
-          id: e.id,
-          country: e.country,
-          deaths: (e.deaths_a || 0) + (e.deaths_b || 0) + (e.deaths_civilians || 0),
-          latitude: e.latitude,
-          longitude: e.longitude,
-          date: e.date_start,
-          conflict: e.conflict_new_id || "State Conflict"
-        }));
+    // 1. Fetch UCDP GED events
+    const fetchUcdp = async () => {
+      try {
+        const res = await fetch("https://ucdpapi.pcr.uu.se/api/gedevents/24.1?pagesize=30", {
+          headers: { "User-Agent": "Mozilla/5.0" },
+          signal: AbortSignal.timeout(8000)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.Result || [];
+          return list.map((e: any) => ({
+            id: e.id,
+            country: e.country,
+            deaths: (e.deaths_a || 0) + (e.deaths_b || 0) + (e.deaths_civilians || 0),
+            latitude: e.latitude,
+            longitude: e.longitude,
+            date: e.date_start,
+            conflict: e.conflict_new_id || "State Conflict"
+          }));
+        }
+      } catch (err) {
+        console.error("UCDP fetch failed:", err);
       }
-    } catch (err) {
-      console.error("UCDP fetch failed:", err);
-    }
-    
+      return [];
+    };
+
+    // 2. Fetch GDELT Doc API
+    const fetchGdelt = async () => {
+      try {
+        const apiQuery = query ? encodeURIComponent(query) : "military conflict";
+        const res = await fetch(`https://api.gdeltproject.org/api/v2/doc/doc?query=${apiQuery}&mode=ArtList&format=JSON&maxrecords=15`, {
+          signal: AbortSignal.timeout(8000)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const list = data.articles || [];
+          return list.map((a: any, idx: number) => ({
+            id: idx,
+            title: a.title,
+            url: a.url,
+            source: a.source || "GDELT",
+            date: a.seendate || new Date().toISOString()
+          }));
+        }
+      } catch (err) {
+        console.error("GDELT fetch failed:", err);
+        // Fallback: Query Google News search RSS if GDELT fails or times out
+        if (query.trim()) {
+          try {
+            const Parser = (await import("rss-parser")).default;
+            const parser = new Parser();
+            const parsedFeed = await parser.parseURL(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US`);
+            return (parsedFeed.items || []).slice(0, 10).map((item, idx) => ({
+              id: idx,
+              title: item.title,
+              url: item.link,
+              source: typeof item.source === "object" ? (item.source as any).text : (item.source || "Google News"),
+              date: item.pubDate || new Date().toISOString()
+            }));
+          } catch (rssErr) {
+            console.error("Geopolitical fallback RSS failed:", rssErr);
+          }
+        }
+      }
+      return [];
+    };
+
+    // 3. Fetch OpenSky Network
+    const fetchOpenSky = async () => {
+      try {
+        const res = await fetch("https://opensky-network.org/api/states/all", {
+          signal: AbortSignal.timeout(8000)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.states)) {
+            return data.states.length;
+          }
+        }
+      } catch (err) {
+        console.error("OpenSky fetch failed:", err);
+      }
+      return 4290;
+    };
+
+    const [ucdpEventsList, gdeltStoriesList, openSkyFlightCount] = await Promise.all([
+      fetchUcdp(),
+      fetchGdelt(),
+      fetchOpenSky()
+    ]);
+
+    let ucdpEvents = ucdpEventsList;
     if (ucdpEvents.length === 0) {
       ucdpEvents = [
         { id: 1, country: "Ukraine", deaths: 14, latitude: 48.4, longitude: 31.2, date: new Date().toISOString().slice(0, 10), conflict: "Russia-Ukraine conflict" },
@@ -227,44 +302,7 @@ export const fetchGeopoliticalSecurity = createServerFn({ method: "GET" })
       ];
     }
 
-    // 2. GDELT Doc API
-    try {
-      const apiQuery = query ? encodeURIComponent(query) : "military conflict";
-      const res = await fetch(`https://api.gdeltproject.org/api/v2/doc/doc?query=${apiQuery}&mode=ArtList&format=JSON&maxrecords=15`, {
-        signal: AbortSignal.timeout(8000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const list = data.articles || [];
-        gdeltStories = list.map((a: any, idx: number) => ({
-          id: idx,
-          title: a.title,
-          url: a.url,
-          source: a.source || "GDELT",
-          date: a.seendate || new Date().toISOString()
-        }));
-      }
-    } catch (err) {
-      console.error("GDELT fetch failed:", err);
-      // Fallback: Query Google News search RSS if GDELT fails or times out
-      if (query.trim()) {
-        try {
-          const Parser = (await import("rss-parser")).default;
-          const parser = new Parser();
-          const parsedFeed = await parser.parseURL(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US`);
-          gdeltStories = (parsedFeed.items || []).slice(0, 10).map((item, idx) => ({
-            id: idx,
-            title: item.title,
-            url: item.link,
-            source: typeof item.source === "object" ? (item.source as any).text : (item.source || "Google News"),
-            date: item.pubDate || new Date().toISOString()
-          }));
-        } catch (rssErr) {
-          console.error("Geopolitical fallback RSS failed:", rssErr);
-        }
-      }
-    }
-    
+    let gdeltStories = gdeltStoriesList;
     if (gdeltStories.length === 0) {
       gdeltStories = [
         { id: 1, title: "Military deployment patterns observed near maritime choke points in the Indo-Pacific", url: "https://www.defenseone.com", source: "Defense One", date: new Date().toISOString() },
@@ -272,25 +310,10 @@ export const fetchGeopoliticalSecurity = createServerFn({ method: "GET" })
       ];
     }
 
-    // 3. OpenSky Network flight states count
-    try {
-      const res = await fetch("https://opensky-network.org/api/states/all", {
-        signal: AbortSignal.timeout(5000)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data && Array.isArray(data.states)) {
-          flightCount = data.states.length;
-        }
-      }
-    } catch (err) {
-      console.error("OpenSky fetch failed:", err);
-    }
-
     return {
       ucdpEvents,
       gdeltStories,
-      flightCount,
+      flightCount: openSkyFlightCount,
       gpsStatus: "GPS Jamming High: 14 hotzones active in Baltic / Eastern Europe",
       orefAlerts: [
         { time: new Date().toLocaleTimeString(), zone: "Galilee, Israel", alert: "Rocket Alert - Interceptions Reported" },
@@ -298,6 +321,7 @@ export const fetchGeopoliticalSecurity = createServerFn({ method: "GET" })
       ]
     };
   });
+
 
 export const fetchRSSAggregator = createServerFn({ method: "GET" })
   .validator((data: { q?: string; query?: string } | undefined) => data)
@@ -343,22 +367,26 @@ export const fetchRSSAggregator = createServerFn({ method: "GET" })
       ]
     };
 
+    const parsePromises: Promise<void>[] = [];
     for (const [category, feeds] of Object.entries(FEEDS_CONFIG)) {
       for (const feed of feeds) {
-        try {
-          const parsedFeed = await parser.parseURL(feed.url);
-          const items = (parsedFeed.items || []).slice(0, 10).map((item) => ({
-            title: item.title,
-            link: item.link,
-            pubDate: item.pubDate || new Date().toISOString(),
-            source: feed.name
-          }));
-          results[category] = results[category].concat(items);
-        } catch (err) {
-          console.error(`Failed to parse RSS feed ${feed.name}:`, err);
-        }
+        parsePromises.push((async () => {
+          try {
+            const parsedFeed = await parser.parseURL(feed.url);
+            const items = (parsedFeed.items || []).slice(0, 10).map((item) => ({
+              title: item.title,
+              link: item.link,
+              pubDate: item.pubDate || new Date().toISOString(),
+              source: feed.name
+            }));
+            results[category] = results[category].concat(items);
+          } catch (err) {
+            console.error(`Failed to parse RSS feed ${feed.name}:`, err);
+          }
+        })());
       }
     }
+    await Promise.all(parsePromises);
     
     // Add fallbacks if empty
     if (results.politics.length === 0) {

@@ -304,36 +304,41 @@ function ResearchCenter() {
     setVisibleSearchCount(5);
 
     try {
-      const res = await fetchNews({ data: { query, q: query } });
-      if (res && res.stories && res.stories.length > 0) {
-        setStories(res.stories);
-      } else {
-        setStories([]);
-      }
-
-      const revRes = await fetchReviews({ data: { query, q: query } });
-      setReviewsData(revRes);
-
-      const osintRes = await fetchOSINT({ data: { query, q: query } });
-      setOsintData(osintRes);
-
-      const searchRes = await fetchSearchIntelligence({ data: { query, q: query } });
-      setSearchResultData(searchRes?.results || []);
-
-      const socialRes = await fetchSocialIntelligence({ data: { query, q: query } });
-      setSocialMentions(socialRes?.mentions || []);
-      setSocialProfiles(socialRes?.profiles || []);
-
-      const mediaRes = await fetchMediaIntelligence({ data: { query, q: query } });
-      setMediaData(mediaRes || { images: [], videos: [], documents: [] });
-
-      // Fetch new OSINT datasets concurrently matching query
-      const [cyberThreatsRes, telegramOSINTRes, geopoliticalRes, rssRes] = await Promise.all([
+      const [
+        newsRes,
+        revRes,
+        osintRes,
+        searchRes,
+        socialRes,
+        mediaRes,
+        cyberThreatsRes,
+        telegramOSINTRes,
+        geopoliticalRes,
+        rssRes
+      ] = await Promise.all([
+        fetchNews({ data: { query, q: query } }),
+        fetchReviews({ data: { query, q: query } }),
+        fetchOSINT({ data: { query, q: query } }),
+        fetchSearchIntelligence({ data: { query, q: query } }),
+        fetchSocialIntelligence({ data: { query, q: query } }),
+        fetchMediaIntelligence({ data: { query, q: query } }),
         fetchCyberThreats({ data: { query } }),
         fetchTelegramOSINT({ data: { query } }),
         fetchGeopoliticalSecurity({ data: { query } }),
         fetchRSSAggregator({ data: { query } })
       ]);
+
+      if (newsRes && newsRes.stories && newsRes.stories.length > 0) {
+        setStories(newsRes.stories);
+      } else {
+        setStories([]);
+      }
+      setReviewsData(revRes);
+      setOsintData(osintRes);
+      setSearchResultData(searchRes?.results || []);
+      setSocialMentions(socialRes?.mentions || []);
+      setSocialProfiles(socialRes?.profiles || []);
+      setMediaData(mediaRes || { images: [], videos: [], documents: [] });
       setOsintCyberThreats(cyberThreatsRes);
       setOsintTelegramPosts(telegramOSINTRes);
       setOsintGeopolitical(geopoliticalRes);
