@@ -327,12 +327,12 @@ function ResearchCenter() {
       const mediaRes = await fetchMediaIntelligence({ data: { query, q: query } });
       setMediaData(mediaRes || { images: [], videos: [], documents: [] });
 
-      // Fetch new OSINT datasets concurrently
+      // Fetch new OSINT datasets concurrently matching query
       const [cyberThreatsRes, telegramOSINTRes, geopoliticalRes, rssRes] = await Promise.all([
-        fetchCyberThreats(),
-        fetchTelegramOSINT(),
-        fetchGeopoliticalSecurity(),
-        fetchRSSAggregator()
+        fetchCyberThreats({ data: { query } }),
+        fetchTelegramOSINT({ data: { query } }),
+        fetchGeopoliticalSecurity({ data: { query } }),
+        fetchRSSAggregator({ data: { query } })
       ]);
       setOsintCyberThreats(cyberThreatsRes);
       setOsintTelegramPosts(telegramOSINTRes);
@@ -1318,7 +1318,8 @@ function ResearchCenter() {
                 const cybList = getFilteredRss("cyber");
                 const milList = getFilteredRss("military");
                 const finList = getFilteredRss("finance");
-                const totalFilteredCount = polList.length + cybList.length + milList.length + finList.length;
+                const incList = osintRss?.incident || [];
+                const totalFilteredCount = polList.length + cybList.length + milList.length + finList.length + incList.length;
 
                 return (
                   <Card>
@@ -1333,82 +1334,105 @@ function ResearchCenter() {
                       ) : totalFilteredCount === 0 ? (
                         <div className="text-center py-20 text-xs text-muted-foreground">No news or RSS feeds found matching "{activeQuery}".</div>
                       ) : (
-                        <div className="grid gap-4 md:grid-cols-2">
-                          <Card className="bg-card/40 border">
-                            <CardHeader className="p-3 border-b">
-                              <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Politics & Global</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                              {polList.length === 0 ? (
-                                <div className="text-[11px] text-muted-foreground text-center py-4">No matching political feeds.</div>
-                              ) : polList.map((item: any, idx: number) => (
-                                <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
-                                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
-                                  <div className="flex items-center justify-between text-[9px] text-muted-foreground">
-                                    <span>{item.source}</span>
-                                    <span>{new Date(item.pubDate).toLocaleString()}</span>
+                        <div className="space-y-4">
+                          {incList.length > 0 && (
+                            <Card className="bg-gradient-to-br from-background to-primary/5 border border-primary/20">
+                              <CardHeader className="p-3 border-b flex flex-row items-center justify-between">
+                                <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary flex items-center gap-1.5 font-mono">
+                                  <Sparkles className="size-3.5 text-primary animate-pulse" /> Live Incident News Stream (Google News: "{activeQuery}")
+                                </CardTitle>
+                                <Badge variant="secondary" className="h-5 text-[10px] font-semibold">{incList.length} articles</Badge>
+                              </CardHeader>
+                              <CardContent className="p-3 grid gap-3 sm:grid-cols-2 max-h-[300px] overflow-y-auto">
+                                {incList.map((item: any, idx: number) => (
+                                  <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
+                                    <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block leading-snug">{item.title}</a>
+                                    <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                      <span>{item.source}</span>
+                                      <span>{new Date(item.pubDate).toLocaleString()}</span>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </CardContent>
-                          </Card>
+                                ))}
+                              </CardContent>
+                            </Card>
+                          )}
+                          <div className="grid gap-4 md:grid-cols-2">
+                            <Card className="bg-card/40 border">
+                              <CardHeader className="p-3 border-b">
+                                <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Politics & Global</CardTitle>
+                              </CardHeader>
+                              <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
+                                {polList.length === 0 ? (
+                                  <div className="text-[11px] text-muted-foreground text-center py-4">No matching political feeds.</div>
+                                ) : polList.map((item: any, idx: number) => (
+                                  <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
+                                    <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
+                                    <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                      <span>{item.source}</span>
+                                      <span>{new Date(item.pubDate).toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </CardContent>
+                            </Card>
 
-                          <Card className="bg-card/40 border">
-                            <CardHeader className="p-3 border-b">
-                              <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Cyber Advisories & Intel</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                              {cybList.length === 0 ? (
-                                <div className="text-[11px] text-muted-foreground text-center py-4">No matching cyber advisories.</div>
-                              ) : cybList.map((item: any, idx: number) => (
-                                <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
-                                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
-                                  <div className="flex items-center justify-between text-[9px] text-muted-foreground">
-                                    <span>{item.source}</span>
-                                    <span>{new Date(item.pubDate).toLocaleString()}</span>
+                            <Card className="bg-card/40 border">
+                              <CardHeader className="p-3 border-b">
+                                <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Cyber Advisories & Intel</CardTitle>
+                              </CardHeader>
+                              <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
+                                {cybList.length === 0 ? (
+                                  <div className="text-[11px] text-muted-foreground text-center py-4">No matching cyber advisories.</div>
+                                ) : cybList.map((item: any, idx: number) => (
+                                  <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
+                                    <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
+                                    <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                      <span>{item.source}</span>
+                                      <span>{new Date(item.pubDate).toLocaleString()}</span>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </CardContent>
-                          </Card>
+                                ))}
+                              </CardContent>
+                            </Card>
 
-                          <Card className="bg-card/40 border">
-                            <CardHeader className="p-3 border-b">
-                              <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Military & Defense</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                              {milList.length === 0 ? (
-                                <div className="text-[11px] text-muted-foreground text-center py-4">No matching military feeds.</div>
-                              ) : milList.map((item: any, idx: number) => (
-                                <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
-                                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
-                                  <div className="flex items-center justify-between text-[9px] text-muted-foreground">
-                                    <span>{item.source}</span>
-                                    <span>{new Date(item.pubDate).toLocaleString()}</span>
+                            <Card className="bg-card/40 border">
+                              <CardHeader className="p-3 border-b">
+                                <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Military & Defense</CardTitle>
+                              </CardHeader>
+                              <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
+                                {milList.length === 0 ? (
+                                  <div className="text-[11px] text-muted-foreground text-center py-4">No matching military feeds.</div>
+                                ) : milList.map((item: any, idx: number) => (
+                                  <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
+                                    <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
+                                    <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                      <span>{item.source}</span>
+                                      <span>{new Date(item.pubDate).toLocaleString()}</span>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </CardContent>
-                          </Card>
+                                ))}
+                              </CardContent>
+                            </Card>
 
-                          <Card className="bg-card/40 border">
-                            <CardHeader className="p-3 border-b">
-                              <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Markets & Finance</CardTitle>
-                            </CardHeader>
-                            <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                              {finList.length === 0 ? (
-                                <div className="text-[11px] text-muted-foreground text-center py-4">No matching financial feeds.</div>
-                              ) : finList.map((item: any, idx: number) => (
-                                <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
-                                  <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
-                                  <div className="flex items-center justify-between text-[9px] text-muted-foreground">
-                                    <span>{item.source}</span>
-                                    <span>{new Date(item.pubDate).toLocaleString()}</span>
+                            <Card className="bg-card/40 border">
+                              <CardHeader className="p-3 border-b">
+                                <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Markets & Finance</CardTitle>
+                              </CardHeader>
+                              <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
+                                {finList.length === 0 ? (
+                                  <div className="text-[11px] text-muted-foreground text-center py-4">No matching financial feeds.</div>
+                                ) : finList.map((item: any, idx: number) => (
+                                  <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
+                                    <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
+                                    <div className="flex items-center justify-between text-[9px] text-muted-foreground">
+                                      <span>{item.source}</span>
+                                      <span>{new Date(item.pubDate).toLocaleString()}</span>
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
-                            </CardContent>
-                          </Card>
+                                ))}
+                              </CardContent>
+                            </Card>
+                          </div>
                         </div>
                       )}
                     </CardContent>

@@ -50,8 +50,10 @@ export function matchQuery(text: string, query: string): boolean {
 // ============================================================================
 
 export const fetchCyberThreats = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .validator((data: { q?: string; query?: string } | undefined) => data)
+  .handler(async ({ data }) => {
     const threats: any[] = [];
+    const query = data?.query || data?.q || "";
     
     // 1. Feodo Tracker ( abuse.ch C2 botnet IPs )
     try {
@@ -119,7 +121,9 @@ export const fetchCyberThreats = createServerFn({ method: "GET" })
   });
 
 export const fetchTelegramOSINT = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .validator((data: { q?: string; query?: string } | undefined) => data)
+  .handler(async ({ data }) => {
+    const query = data?.query || data?.q || "";
     const channels = ["VahidOnline", "abualiexpress", "BNONews", "OSINTdefender", "vxunderground"];
     let allPosts: any[] = [];
 
@@ -185,7 +189,9 @@ export const fetchTelegramOSINT = createServerFn({ method: "GET" })
   });
 
 export const fetchGeopoliticalSecurity = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .validator((data: { q?: string; query?: string } | undefined) => data)
+  .handler(async ({ data }) => {
+    const query = data?.query || data?.q || "";
     let ucdpEvents: any[] = [];
     let gdeltStories: any[] = [];
     let flightCount = 4290;
@@ -223,7 +229,8 @@ export const fetchGeopoliticalSecurity = createServerFn({ method: "GET" })
 
     // 2. GDELT Doc API
     try {
-      const res = await fetch("https://api.gdeltproject.org/api/v2/doc/doc?query=military%20conflict&mode=ArtList&format=JSON&maxrecords=15", {
+      const apiQuery = query ? encodeURIComponent(query) : "military conflict";
+      const res = await fetch(`https://api.gdeltproject.org/api/v2/doc/doc?query=${apiQuery}&mode=ArtList&format=JSON&maxrecords=15`, {
         signal: AbortSignal.timeout(5000)
       });
       if (res.ok) {
@@ -276,11 +283,29 @@ export const fetchGeopoliticalSecurity = createServerFn({ method: "GET" })
   });
 
 export const fetchRSSAggregator = createServerFn({ method: "GET" })
-  .handler(async () => {
+  .validator((data: { q?: string; query?: string } | undefined) => data)
+  .handler(async ({ data }) => {
     const Parser = (await import("rss-parser")).default;
     const parser = new Parser();
-    const results: Record<string, any[]> = { politics: [], cyber: [], military: [], finance: [] };
+    const results: Record<string, any[]> = { politics: [], cyber: [], military: [], finance: [], incident: [] };
+    const query = data?.query || data?.q || "";
     
+    // Fetch live incident feed if query is provided
+    if (query.trim()) {
+      try {
+        const incidentUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=en-US`;
+        const parsedFeed = await parser.parseURL(incidentUrl);
+        results.incident = (parsedFeed.items || []).slice(0, 15).map((item) => ({
+          title: item.title,
+          link: item.link,
+          pubDate: item.pubDate || new Date().toISOString(),
+          source: typeof item.source === "object" ? (item.source as any).text : (item.source || "Google News")
+        }));
+      } catch (err) {
+        console.error("Failed to parse dynamic incident RSS feed:", err);
+      }
+    }
+
     const FEEDS_CONFIG = {
       politics: [
         { name: "BBC News", url: "https://feeds.bbci.co.uk/news/world/rss.xml" },
