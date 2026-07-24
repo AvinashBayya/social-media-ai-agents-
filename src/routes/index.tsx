@@ -1102,7 +1102,7 @@ function ResearchCenter() {
                 const filtered = osintCyberThreats.filter(t =>
                   t.ip.includes(activeQuery) || t.malware.toLowerCase().includes(activeQuery.toLowerCase())
                 );
-                const displayed = filtered.length > 0 ? filtered : osintCyberThreats;
+                const displayed = filtered;
 
                 return (
                   <Card>
@@ -1115,7 +1115,7 @@ function ResearchCenter() {
                       {isLoadingOSINT ? (
                         <div className="flex justify-center py-10"><RefreshCw className="size-6 animate-spin text-primary" /></div>
                       ) : displayed.length === 0 ? (
-                        <div className="text-center py-10 text-xs text-muted-foreground">No active threat indicators found.</div>
+                        <div className="text-center py-10 text-xs text-muted-foreground">No active threat indicators found matching "{activeQuery}".</div>
                       ) : (
                         <div className="rounded-md border overflow-hidden">
                           <Table>
@@ -1166,7 +1166,7 @@ function ResearchCenter() {
                 const filtered = osintTelegramPosts.filter(p =>
                   p.channel.toLowerCase().includes(activeQuery.toLowerCase()) || p.text.toLowerCase().includes(activeQuery.toLowerCase())
                 );
-                const displayed = filtered.length > 0 ? filtered : osintTelegramPosts;
+                const displayed = filtered;
 
                 return (
                   <Card>
@@ -1179,7 +1179,7 @@ function ResearchCenter() {
                       {isLoadingOSINT ? (
                         <div className="flex justify-center py-10"><RefreshCw className="size-6 animate-spin text-primary" /></div>
                       ) : displayed.length === 0 ? (
-                        <div className="text-center py-10 text-xs text-muted-foreground">No recent Telegram OSINT alerts found.</div>
+                        <div className="text-center py-10 text-xs text-muted-foreground">No recent Telegram OSINT alerts found matching "{activeQuery}".</div>
                       ) : (
                         <div className="grid gap-3 md:grid-cols-2">
                           {displayed.map((post: any) => (
@@ -1247,7 +1247,11 @@ function ResearchCenter() {
                           const filtered = list.filter((e: any) =>
                             e.country.toLowerCase().includes(activeQuery.toLowerCase()) || e.conflict.toLowerCase().includes(activeQuery.toLowerCase())
                           );
-                          const displayed = filtered.length > 0 ? filtered : list;
+                          const displayed = filtered;
+
+                          if (displayed.length === 0) {
+                            return <div className="text-center py-10 text-xs text-muted-foreground">No matching conflict events logged for "{activeQuery}".</div>;
+                          }
 
                           return displayed.map((event: any, idx: number) => (
                             <div key={idx} className="flex items-start justify-between border-b pb-2 text-xs">
@@ -1277,7 +1281,11 @@ function ResearchCenter() {
                           const filtered = list.filter((s: any) =>
                             s.title.toLowerCase().includes(activeQuery.toLowerCase())
                           );
-                          const displayed = filtered.length > 0 ? filtered : list;
+                          const displayed = filtered;
+
+                          if (displayed.length === 0) {
+                            return <div className="text-center py-10 text-xs text-muted-foreground">No matching headlines resolved for "{activeQuery}".</div>;
+                          }
 
                           return displayed.map((story: any) => (
                             <div key={story.id} className="border-b pb-2 text-xs space-y-1">
@@ -1303,8 +1311,14 @@ function ResearchCenter() {
                   const filtered = list.filter((item: any) =>
                     item.title.toLowerCase().includes(activeQuery.toLowerCase())
                   );
-                  return filtered.length > 0 ? filtered : list;
+                  return filtered;
                 };
+
+                const polList = getFilteredRss("politics");
+                const cybList = getFilteredRss("cyber");
+                const milList = getFilteredRss("military");
+                const finList = getFilteredRss("finance");
+                const totalFilteredCount = polList.length + cybList.length + milList.length + finList.length;
 
                 return (
                   <Card>
@@ -1316,6 +1330,8 @@ function ResearchCenter() {
                         <div className="flex justify-center py-20"><RefreshCw className="size-8 animate-spin text-primary" /></div>
                       ) : !osintRss ? (
                         <div className="text-center py-20 text-xs text-muted-foreground">No RSS records parsed.</div>
+                      ) : totalFilteredCount === 0 ? (
+                        <div className="text-center py-20 text-xs text-muted-foreground">No news or RSS feeds found matching "{activeQuery}".</div>
                       ) : (
                         <div className="grid gap-4 md:grid-cols-2">
                           <Card className="bg-card/40 border">
@@ -1323,7 +1339,9 @@ function ResearchCenter() {
                               <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Politics & Global</CardTitle>
                             </CardHeader>
                             <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                              {getFilteredRss("politics").map((item: any, idx: number) => (
+                              {polList.length === 0 ? (
+                                <div className="text-[11px] text-muted-foreground text-center py-4">No matching political feeds.</div>
+                              ) : polList.map((item: any, idx: number) => (
                                 <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
                                   <div className="flex items-center justify-between text-[9px] text-muted-foreground">
@@ -1340,7 +1358,9 @@ function ResearchCenter() {
                               <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Cyber Advisories & Intel</CardTitle>
                             </CardHeader>
                             <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                              {getFilteredRss("cyber").map((item: any, idx: number) => (
+                              {cybList.length === 0 ? (
+                                <div className="text-[11px] text-muted-foreground text-center py-4">No matching cyber advisories.</div>
+                              ) : cybList.map((item: any, idx: number) => (
                                 <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
                                   <div className="flex items-center justify-between text-[9px] text-muted-foreground">
@@ -1357,7 +1377,9 @@ function ResearchCenter() {
                               <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Military & Defense</CardTitle>
                             </CardHeader>
                             <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                              {getFilteredRss("military").map((item: any, idx: number) => (
+                              {milList.length === 0 ? (
+                                <div className="text-[11px] text-muted-foreground text-center py-4">No matching military feeds.</div>
+                              ) : milList.map((item: any, idx: number) => (
                                 <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
                                   <div className="flex items-center justify-between text-[9px] text-muted-foreground">
@@ -1374,7 +1396,9 @@ function ResearchCenter() {
                               <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Markets & Finance</CardTitle>
                             </CardHeader>
                             <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                              {getFilteredRss("finance").map((item: any, idx: number) => (
+                              {finList.length === 0 ? (
+                                <div className="text-[11px] text-muted-foreground text-center py-4">No matching financial feeds.</div>
+                              ) : finList.map((item: any, idx: number) => (
                                 <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
                                   <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">{item.title}</a>
                                   <div className="flex items-center justify-between text-[9px] text-muted-foreground">

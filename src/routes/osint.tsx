@@ -414,6 +414,21 @@ function Page() {
     p.channel.toLowerCase().includes(searchQuery.toLowerCase()) || p.text.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  const filteredUcdp = (geopoliticalData?.ucdpEvents || []).filter((e: any) =>
+    e.country.toLowerCase().includes(searchQuery.toLowerCase()) || e.conflict.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredGdelt = (geopoliticalData?.gdeltStories || []).filter((s: any) =>
+    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getFilteredRss = (category: string) => {
+    const list = rssFeeds?.[category] || [];
+    return list.filter((item: any) =>
+      item.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
   return (
     <AppShell>
       <PageHeader
@@ -649,6 +664,16 @@ function Page() {
 
         {/* Tab content 4: Geopolitical Security */}
         <TabsContent value="geopolitical" className="space-y-4">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Filter geopolitical dashboard by country, conflict, or event..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-10 pl-9 border"
+            />
+          </div>
+
           <div className="grid gap-4 md:grid-cols-3">
             <Card className="bg-gradient-to-br from-background to-primary/5 border border-primary/20">
               <CardContent className="p-4 space-y-2">
@@ -707,7 +732,9 @@ function Page() {
                   <div className="flex justify-center py-10">
                     <RefreshCw className="size-6 animate-spin text-primary" />
                   </div>
-                ) : geopoliticalData?.ucdpEvents?.map((event: any, idx: number) => (
+                ) : filteredUcdp.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-muted-foreground">No conflict events found.</div>
+                ) : filteredUcdp.map((event: any, idx: number) => (
                   <div key={idx} className="flex items-start justify-between border-b pb-2 text-xs">
                     <div>
                       <div className="font-semibold text-foreground/95 flex items-center gap-1">
@@ -722,7 +749,7 @@ function Page() {
                       <div className="text-[9px] text-muted-foreground mt-0.5">{event.date}</div>
                     </div>
                   </div>
-                )) || <div className="text-xs text-muted-foreground">No conflict data available.</div>}
+                ))}
               </CardContent>
             </Card>
 
@@ -741,7 +768,9 @@ function Page() {
                   <div className="flex justify-center py-10">
                     <RefreshCw className="size-6 animate-spin text-primary" />
                   </div>
-                ) : geopoliticalData?.gdeltStories?.map((story: any) => (
+                ) : filteredGdelt.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-muted-foreground">No news reports found.</div>
+                ) : filteredGdelt.map((story: any) => (
                   <div key={story.id} className="border-b pb-2 text-xs space-y-1">
                     <a 
                       href={story.url} 
@@ -756,7 +785,7 @@ function Page() {
                       <span>{new Date(story.date).toLocaleDateString()}</span>
                     </div>
                   </div>
-                )) || <div className="text-xs text-muted-foreground">No news reports available.</div>}
+                ))}
               </CardContent>
             </Card>
           </div>
@@ -766,12 +795,25 @@ function Page() {
         <TabsContent value="rss" className="space-y-4">
           <Card>
             <CardHeader className="p-4 border-b">
-              <CardTitle className="text-base font-bold flex items-center gap-2">
-                <BookOpen className="size-5 text-primary" /> Categorized News & RSS Feeds
-              </CardTitle>
-              <CardDescription className="text-xs">
-                Continuous ingestion loop covering politics, cyber threat advisories, military/defense outlets, and financial indexes.
-              </CardDescription>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div>
+                  <CardTitle className="text-base font-bold flex items-center gap-2">
+                    <BookOpen className="size-5 text-primary" /> Categorized News & RSS Feeds
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Continuous ingestion loop covering politics, cyber threat advisories, military/defense outlets, and financial indexes.
+                  </CardDescription>
+                </div>
+                <div className="relative w-full md:w-80 shrink-0">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Input
+                    placeholder="Filter RSS feeds by keyword..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="h-9 pl-9 border"
+                  />
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-4">
               {isLoading ? (
@@ -790,7 +832,9 @@ function Page() {
                       <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Politics & Global</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                      {rssFeeds.politics?.map((item: any, idx: number) => (
+                      {getFilteredRss("politics").length === 0 ? (
+                        <div className="text-xs text-muted-foreground text-center py-4">No matching articles found.</div>
+                      ) : getFilteredRss("politics").map((item: any, idx: number) => (
                         <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
                           <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">
                             {item.title}
@@ -810,7 +854,9 @@ function Page() {
                       <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Cyber Advisories & Intel</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                      {rssFeeds.cyber?.map((item: any, idx: number) => (
+                      {getFilteredRss("cyber").length === 0 ? (
+                        <div className="text-xs text-muted-foreground text-center py-4">No matching advisories found.</div>
+                      ) : getFilteredRss("cyber").map((item: any, idx: number) => (
                         <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
                           <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">
                             {item.title}
@@ -830,7 +876,9 @@ function Page() {
                       <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Military & Defense</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                      {rssFeeds.military?.map((item: any, idx: number) => (
+                      {getFilteredRss("military").length === 0 ? (
+                        <div className="text-xs text-muted-foreground text-center py-4">No matching articles found.</div>
+                      ) : getFilteredRss("military").map((item: any, idx: number) => (
                         <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
                           <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">
                             {item.title}
@@ -850,7 +898,9 @@ function Page() {
                       <CardTitle className="text-xs font-bold uppercase tracking-wider text-primary">Markets & Finance</CardTitle>
                     </CardHeader>
                     <CardContent className="p-3 space-y-2.5 max-h-[350px] overflow-y-auto">
-                      {rssFeeds.finance?.map((item: any, idx: number) => (
+                      {getFilteredRss("finance").length === 0 ? (
+                        <div className="text-xs text-muted-foreground text-center py-4">No matching indexes found.</div>
+                      ) : getFilteredRss("finance").map((item: any, idx: number) => (
                         <div key={idx} className="text-xs border-b pb-1.5 space-y-1">
                           <a href={item.link} target="_blank" rel="noopener noreferrer" className="hover:underline hover:text-primary font-medium block">
                             {item.title}
