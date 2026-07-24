@@ -16,6 +16,36 @@ import {
 } from "lucide-react";
 
 // ============================================================================
+// OSINT Synonym Expander and Keyword Matcher
+// ============================================================================
+
+export const SYNONYMS: Record<string, string[]> = {
+  "air force": ["air force", "airforce", "aviation", "flight", "pilot", "jet", "aircraft", "fighter", "missile", "intercept", "baltic airspace", "air patrol"],
+  "army": ["army", "military", "troops", "soldier", "defense", "forces", "conflict", "armored", "border crossing", "deploy", "war", "armed", "casualties"],
+  "navy": ["navy", "maritime", "ship", "sea", "fleet", "choke point", "coastal", "vessel", "naval"],
+  "cyber": ["cyber", "ransomware", "c2", "malware", "hack", "botnet", "exploit", "firmware", "vulnerability", "threat", "ip", "dns", "domain"]
+};
+
+export function getQueryTerms(query: string): string[] {
+  if (!query) return [];
+  const qLower = query.toLowerCase().trim();
+  const terms = [qLower];
+  for (const [key, synonyms] of Object.entries(SYNONYMS)) {
+    if (qLower.includes(key) || key.includes(qLower)) {
+      terms.push(...synonyms);
+    }
+  }
+  return Array.from(new Set(terms));
+}
+
+export function matchQuery(text: string, query: string): boolean {
+  if (!query) return true;
+  const terms = getQueryTerms(query);
+  const textLower = text.toLowerCase();
+  return terms.some(term => textLower.includes(term));
+}
+
+// ============================================================================
 // Server functions (RPC)
 // ============================================================================
 
@@ -407,25 +437,25 @@ function Page() {
   }, [activeTab]);
 
   const filteredThreats = cyberThreats.filter(t => 
-    t.ip.includes(searchQuery) || t.malware.toLowerCase().includes(searchQuery.toLowerCase())
+    t.ip.includes(searchQuery) || matchQuery(t.malware, searchQuery)
   );
 
   const filteredTelegram = telegramPosts.filter(p => 
-    p.channel.toLowerCase().includes(searchQuery.toLowerCase()) || p.text.toLowerCase().includes(searchQuery.toLowerCase())
+    matchQuery(p.channel, searchQuery) || matchQuery(p.text, searchQuery)
   );
 
   const filteredUcdp = (geopoliticalData?.ucdpEvents || []).filter((e: any) =>
-    e.country.toLowerCase().includes(searchQuery.toLowerCase()) || e.conflict.toLowerCase().includes(searchQuery.toLowerCase())
+    matchQuery(e.country, searchQuery) || matchQuery(e.conflict, searchQuery)
   );
 
   const filteredGdelt = (geopoliticalData?.gdeltStories || []).filter((s: any) =>
-    s.title.toLowerCase().includes(searchQuery.toLowerCase())
+    matchQuery(s.title, searchQuery)
   );
 
   const getFilteredRss = (category: string) => {
     const list = rssFeeds?.[category] || [];
     return list.filter((item: any) =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase())
+      matchQuery(item.title, searchQuery)
     );
   };
 

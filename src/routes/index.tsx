@@ -8,7 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { fetchNews, fetchReviews, fetchOSINT, fetchSearchIntelligence, fetchSocialIntelligence, fetchMediaIntelligence } from "./news";
-import { fetchCyberThreats, fetchTelegramOSINT, fetchGeopoliticalSecurity, fetchRSSAggregator } from "./osint";
+import { fetchCyberThreats, fetchTelegramOSINT, fetchGeopoliticalSecurity, fetchRSSAggregator, matchQuery } from "./osint";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Search, FolderOpen, Bookmark, User, TrendingUp, Sparkles, MapPin,
@@ -1100,7 +1100,7 @@ function ResearchCenter() {
 
               {osintSubTab === "cyber" && (() => {
                 const filtered = osintCyberThreats.filter(t =>
-                  t.ip.includes(activeQuery) || t.malware.toLowerCase().includes(activeQuery.toLowerCase())
+                  t.ip.includes(activeQuery) || matchQuery(t.malware, activeQuery)
                 );
                 const displayed = filtered;
 
@@ -1164,7 +1164,7 @@ function ResearchCenter() {
 
               {osintSubTab === "telegram" && (() => {
                 const filtered = osintTelegramPosts.filter(p =>
-                  p.channel.toLowerCase().includes(activeQuery.toLowerCase()) || p.text.toLowerCase().includes(activeQuery.toLowerCase())
+                  matchQuery(p.channel, activeQuery) || matchQuery(p.text, activeQuery)
                 );
                 const displayed = filtered;
 
@@ -1245,7 +1245,7 @@ function ResearchCenter() {
                         ) : (() => {
                           const list = osintGeopolitical?.ucdpEvents || [];
                           const filtered = list.filter((e: any) =>
-                            e.country.toLowerCase().includes(activeQuery.toLowerCase()) || e.conflict.toLowerCase().includes(activeQuery.toLowerCase())
+                            matchQuery(e.country, activeQuery) || matchQuery(e.conflict, activeQuery)
                           );
                           const displayed = filtered;
 
@@ -1279,7 +1279,7 @@ function ResearchCenter() {
                         ) : (() => {
                           const list = osintGeopolitical?.gdeltStories || [];
                           const filtered = list.filter((s: any) =>
-                            s.title.toLowerCase().includes(activeQuery.toLowerCase())
+                            matchQuery(s.title, activeQuery)
                           );
                           const displayed = filtered;
 
@@ -1309,7 +1309,7 @@ function ResearchCenter() {
                 const getFilteredRss = (category: string) => {
                   const list = osintRss?.[category] || [];
                   const filtered = list.filter((item: any) =>
-                    item.title.toLowerCase().includes(activeQuery.toLowerCase())
+                    matchQuery(item.title, activeQuery)
                   );
                   return filtered;
                 };
