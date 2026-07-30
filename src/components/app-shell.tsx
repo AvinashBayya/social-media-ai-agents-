@@ -1,4 +1,5 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useState, useEffect, useRef, ReactNode } from "react";
+import { useRouterState } from "@tanstack/react-router";
 import {
   LayoutDashboard,
   Radio,
@@ -31,21 +32,20 @@ import {
   Sparkles,
   ChevronDown,
   CircleUser,
+  FolderLock,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
   SidebarInset,
+  SidebarFooter,
 } from "@/components/ui/sidebar";
+import { LanguageSwitcher } from "@/components/language-switcher";
+import { SidebarNav, type NavGroup } from "@/components/sidebar-nav";
+import { useT } from "@/i18n/i18n-context";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -57,166 +57,232 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { ReactNode } from "react";
+import { getActiveTarget, setActiveTarget } from "@/utils/active-target";
 
-const NAV_GROUPS: { label: string; items: { title: string; to: string; icon: any }[] }[] = [
+
+const NAV_GROUPS: NavGroup[] = [
   {
-    label: "Overview",
+    label: "Module 1",
     items: [
       { title: "Dashboard", to: "/", icon: LayoutDashboard },
-      { title: "Live Monitoring", to: "/live", icon: Radio },
-      { title: "AI Investigations", to: "/investigations", icon: Search },
+      { title: "Tasks", to: "/tasks", icon: ListChecks },
+      { title: "Subjects", to: "/subjects", icon: Users },
+      { title: "Data Sources", to: "/sources", icon: Database },
+      { title: "AI Agents", to: "/agents", icon: Bot },
+      { title: "Settings", to: "/settings", icon: SettingsIcon },
     ],
   },
   {
-    label: "Targets",
+    label: "Module 2",
     items: [
-      { title: "Subjects", to: "/subjects", icon: Users },
-      { title: "Watchlists", to: "/watchlists", icon: Bookmark },
+      { title: "OSINT Intelligence", to: "/osint", icon: Globe2 },
+      { title: "News Intelligence", to: "/news", icon: Newspaper },
+      { title: "Knowledge Graph", to: "/graph", icon: Network },
+      { title: "Network Analysis", to: "/network", icon: GitBranch },
+      { title: "Timeline Explorer", to: "/timeline", icon: Clock },
       { title: "Entity Explorer", to: "/entities", icon: UserSearch },
     ],
   },
   {
-    label: "Intelligence",
+    label: "Module 3",
     items: [
       { title: "Social Intelligence", to: "/social", icon: Share2 },
-      { title: "News Intelligence", to: "/news", icon: Newspaper },
-      { title: "OSINT Intelligence", to: "/osint", icon: Globe2 },
-      { title: "Image Intelligence", to: "/images", icon: ImageIcon },
-      { title: "Video Intelligence", to: "/videos", icon: Video },
-    ],
-  },
-  {
-    label: "Analysis",
-    items: [
-      { title: "Knowledge Graph", to: "/graph", icon: Network },
-      { title: "Network Analysis", to: "/network", icon: GitBranch },
-      { title: "Timeline Explorer", to: "/timeline", icon: Clock },
+      { title: "Live Monitoring", to: "/live", icon: Radio },
+      { title: "Watchlists", to: "/watchlists", icon: Bookmark },
+      { title: "Crawler Status", to: "/crawlers", icon: Cpu },
       { title: "Sentiment", to: "/sentiment", icon: LineChart },
       { title: "Trends", to: "/trends", icon: TrendingUp },
     ],
   },
   {
-    label: "Response",
+    label: "Module 4",
     items: [
-      { title: "Reports", to: "/reports", icon: FileBarChart },
-      { title: "Alert Center", to: "/alerts", icon: Bell },
-      { title: "Threat Intel", to: "/threats", icon: ShieldAlert },
-      { title: "GIS Intelligence", to: "/gis", icon: Map },
+      { title: "Image Intelligence", to: "/images", icon: ImageIcon },
+      { title: "Video Intelligence", to: "/videos", icon: Video },
     ],
   },
   {
-    label: "Operations",
+    label: "Module 5",
     items: [
-      { title: "Data Sources", to: "/sources", icon: Database },
-      { title: "AI Agents", to: "/agents", icon: Bot },
-      { title: "Crawler Status", to: "/crawlers", icon: Cpu },
-      { title: "Tasks", to: "/tasks", icon: ListChecks },
+      { title: "GIS Intelligence", to: "/gis", icon: Map },
+      { title: "AI Investigations", to: "/investigations", icon: Search },
+      { title: "Evidence Vault", to: "/vault", icon: FolderLock },
+      { title: "Reports", to: "/reports", icon: FileBarChart },
+      { title: "Alert Center", to: "/alerts", icon: Bell },
+      { title: "Threat Intel", to: "/threats", icon: ShieldAlert },
       { title: "Exports", to: "/exports", icon: Download },
-      { title: "Settings", to: "/settings", icon: SettingsIcon },
     ],
   },
 ];
 
 function AppSidebar() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  const isActive = (to: string) => (to === "/" ? pathname === "/" : pathname.startsWith(to));
+  const t = useT();
   return (
-    <Sidebar collapsible="icon" className="border-r">
-      <SidebarHeader className="border-b">
-        <div className="flex items-center gap-2 px-1 py-1.5">
-          <div className="grid size-8 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
-            <Sparkles className="size-4" />
+    <Sidebar collapsible="icon" className="border-r border-[#263548] bg-[#0F172A]">
+      <SidebarHeader className="border-b border-[#263548] bg-[#0F172A]/50 py-3">
+        <div className="flex items-center gap-2 px-2 py-1.5">
+          <div className="grid size-8 place-items-center rounded bg-[#1A2332] text-[#06B6D4] border border-[#263548]">
+            <ShieldAlert className="size-4" />
           </div>
-          <div className="flex flex-col leading-tight group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold tracking-tight">Sentinel AI</span>
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              Intelligence Platform
+          <div className="flex flex-col leading-none group-data-[collapsible=icon]:hidden">
+            <span
+              data-no-translate
+              className="text-xs font-bold uppercase tracking-wider text-[#F3F4F6]"
+            >
+              Sentinel AI
+            </span>
+            <span className="text-[9px] uppercase tracking-widest text-[#94A3B8] font-mono mt-0.5">
+              {t("Defence Command Center")}
             </span>
           </div>
         </div>
-        <button
-          type="button"
-          className="mx-1 mb-1 flex items-center justify-between rounded-md border bg-card px-2 py-1.5 text-xs text-muted-foreground hover:bg-accent group-data-[collapsible=icon]:hidden"
+        <div
+          className="mx-2 mt-1.5 flex items-center justify-between rounded border border-[#263548] bg-[#111827] px-2 py-1 text-[10px] text-[#94A3B8] font-mono group-data-[collapsible=icon]:hidden"
         >
-          <span className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-success animate-pulse" />
-            Global Ops · Tier 1
+          <span className="flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-[#22C55E] animate-pulse" />
+            {t("Global Ops · Tier 1")}
           </span>
-          <ChevronDown className="size-3.5" />
-        </button>
+          <span className="text-[#3B82F6] font-bold">{t("Secure").toUpperCase()}</span>
+        </div>
       </SidebarHeader>
-      <SidebarContent>
-        {NAV_GROUPS.map((group) => (
-          <SidebarGroup key={group.label}>
-            <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.to}>
-                    <SidebarMenuButton asChild isActive={isActive(item.to)} tooltip={item.title}>
-                      <Link to={item.to}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        ))}
+      <SidebarContent className="bg-[#0F172A] px-2 py-2">
+        <SidebarNav groups={NAV_GROUPS} pathname={pathname} />
       </SidebarContent>
+      <SidebarFooter className="border-t border-[#263548] bg-[#0F172A] px-2 py-2">
+        <LanguageSwitcher />
+      </SidebarFooter>
     </Sidebar>
   );
 }
 
 function TopBar() {
+  const [timeStr, setTimeStr] = useState("");
+  const [searchVal, setSearchVal] = useState("");
+  const [activeTarget, setActiveTargetState] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const t = useT();
+
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setTimeStr(now.toISOString().replace("T", " ").substring(0, 19) + " UTC");
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
+
+    const initialTarget = getActiveTarget();
+    setActiveTargetState(initialTarget);
+    setSearchVal(initialTarget);
+
+    const handleTargetChange = (e: any) => {
+      if (e.detail) {
+        setActiveTargetState(e.detail);
+        setSearchVal(e.detail);
+      }
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("sentinel_target_changed", handleTargetChange);
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener("sentinel_target_changed", handleTargetChange);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const handleGlobalSearch = () => {
+    if (searchVal.trim()) {
+      setActiveTarget(searchVal.trim());
+    }
+  };
+
   return (
-    <header className="sticky top-0 z-30 flex h-14 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur">
-      <SidebarTrigger className="-ml-1" />
-      <div className="relative flex-1 max-w-2xl">
-        <CommandIcon className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <Input
-          placeholder="Search subjects, entities, events, hashtags…  (⌘K)"
-          className="h-9 pl-9 pr-16 bg-card"
-        />
-        <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-          ⌘K
-        </kbd>
+    <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-[#263548] bg-[#0B1220] px-4 font-mono text-xs text-[#F3F4F6]">
+      <div className="flex items-center gap-3">
+        <SidebarTrigger className="text-[#94A3B8] hover:text-[#F3F4F6] border border-[#263548] bg-[#111827] size-8 rounded" />
+
+        <div className="hidden lg:flex items-center gap-2 border-r border-[#263548] pr-4 text-[11px]">
+          <span className="text-[#94A3B8]">{t("System").toUpperCase()}:</span>
+          <span className="flex items-center gap-1 font-bold text-[#22C55E]">
+            <span className="size-1.5 rounded-full bg-[#22C55E] animate-pulse" />
+            {t("Nominal").toUpperCase()}
+          </span>
+        </div>
       </div>
-      <div className="ml-auto flex items-center gap-1.5">
-        <Button variant="outline" size="sm" className="gap-1.5">
-          <Sparkles className="size-3.5 text-primary" /> Ask AI
+
+      {/* Global Target Acquisition Search Bar */}
+      <div className="flex items-center gap-2 flex-1 max-w-xl mx-2">
+        <div className="relative w-full flex items-center">
+          <Search className="absolute left-2.5 size-3.5 text-[#10B981]" />
+          <Input
+            ref={inputRef}
+            value={searchVal}
+            onChange={(e) => setSearchVal(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleGlobalSearch()}
+            placeholder={t("Global Target Acquisition (Ctrl+K)...").toUpperCase()}
+            className="h-8 pl-8 pr-20 bg-[#111827] border-[#263548] text-xs font-mono text-[#F3F4F6] placeholder:text-[#64748B] focus:border-[#10B981] rounded"
+          />
+          <Button
+            size="sm"
+            onClick={handleGlobalSearch}
+            className="absolute right-1 h-6 px-2.5 text-[10px] font-mono bg-[#10B981] hover:bg-[#059669] text-black font-bold rounded"
+          >
+            {t("Execute").toUpperCase()}
+          </Button>
+        </div>
+        {activeTarget && (
+          <Badge className="hidden md:flex items-center gap-1.5 bg-[#10B981]/10 text-[#10B981] border-[#10B981]/30 font-mono text-[10px] shrink-0 h-7 px-2">
+            <span className="size-1.5 rounded-full bg-[#10B981] animate-ping" />
+            {t("Target").toUpperCase()}:{" "}
+            <span data-no-translate>{activeTarget.toUpperCase()}</span>
+          </Badge>
+        )}
+      </div>
+
+      {/* Live UTC Clock */}
+      <div className="ml-auto hidden sm:flex items-center gap-3 text-[11px] font-mono text-[#94A3B8] border-r border-[#263548] pr-4 shrink-0">
+        <span data-no-translate>{timeStr}</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="relative size-8 text-[#94A3B8] hover:text-[#F3F4F6] border border-[#263548] bg-[#111827] rounded">
+          <Bell className="size-3.5" />
+          <span className="absolute right-1.5 top-1.5 size-1.5 rounded-full bg-[#EF4444] animate-pulse" />
         </Button>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="size-4" />
-          <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-destructive ring-2 ring-background" />
-        </Button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="gap-2 pr-2">
-              <span className="grid size-7 place-items-center rounded-full bg-primary/10 text-primary">
-                <CircleUser className="size-4" />
+            <Button variant="ghost" size="sm" className="h-8 gap-2 pr-2 border border-[#263548] bg-[#111827] hover:bg-[#1A2332] text-[#F3F4F6] rounded">
+              <span className="grid size-5 place-items-center rounded bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/20">
+                <CircleUser className="size-3" />
               </span>
-              <span className="hidden text-left leading-tight sm:block">
-                <span className="block text-xs font-medium">A. Chen</span>
-                <span className="block text-[10px] text-muted-foreground">Lead Analyst</span>
+              <span className="hidden text-left leading-none sm:block" data-no-translate>
+                <span className="block text-[10px] font-bold uppercase tracking-wider">A. Chen</span>
               </span>
-              <ChevronDown className="size-3.5 text-muted-foreground" />
+              <ChevronDown className="size-3 text-[#94A3B8]" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-48">
-            <DropdownMenuLabel>Signed in as</DropdownMenuLabel>
-            <DropdownMenuItem className="text-xs text-muted-foreground">
+          <DropdownMenuContent align="end" className="w-48 bg-[#111827] border-[#263548] text-[#F3F4F6] rounded">
+            <DropdownMenuLabel className="text-[10px] font-bold text-[#94A3B8] uppercase font-mono">{t("Operations Command")}</DropdownMenuLabel>
+            <DropdownMenuItem className="text-xs font-mono text-[#94A3B8]" data-no-translate>
               a.chen@sentinel.io
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Profile</DropdownMenuItem>
-            <DropdownMenuItem>Preferences</DropdownMenuItem>
-            <DropdownMenuItem>Audit log</DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem>Sign out</DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-[#263548]" />
+            <DropdownMenuItem className="text-xs hover:bg-[#1A2332] focus:bg-[#1A2332]">{t("Profile")}</DropdownMenuItem>
+            <DropdownMenuItem className="text-xs hover:bg-[#1A2332] focus:bg-[#1A2332]">{t("Preferences")}</DropdownMenuItem>
+            <DropdownMenuItem className="text-xs hover:bg-[#1A2332] focus:bg-[#1A2332]">{t("Security Keys")}</DropdownMenuItem>
+            <DropdownMenuSeparator className="bg-[#263548]" />
+            <DropdownMenuItem className="text-xs text-[#EF4444] hover:bg-[#EF4444]/10 focus:bg-[#EF4444]/10">{t("Log Out")}</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -269,11 +335,11 @@ export function StatusDot({
   tone?: "success" | "warning" | "danger" | "info" | "muted";
 }) {
   const map: Record<string, string> = {
-    success: "bg-success",
-    warning: "bg-warning",
-    danger: "bg-destructive",
-    info: "bg-info",
-    muted: "bg-muted-foreground/40",
+    success: "bg-[#22C55E]",
+    warning: "bg-[#F59E0B]",
+    danger: "bg-[#EF4444]",
+    info: "bg-[#06B6D4]",
+    muted: "bg-[#94A3B8]/40",
   };
   return (
     <span className="relative inline-flex">
@@ -301,35 +367,40 @@ export function toneBadge(
 } {
   const map = {
     positive: {
-      className: "bg-success/10 text-success border-success/20",
+      className:
+        "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20",
       label: "Positive",
     },
     negative: {
-      className: "bg-destructive/10 text-destructive border-destructive/20",
+      className: "bg-[#EF4444]/10 text-[#EF4444] border-[#EF4444]/20",
       label: "Negative",
     },
-    neutral: { className: "bg-muted text-muted-foreground border-border", label: "Neutral" },
+    neutral: { className: "bg-[#1A2332] text-[#94A3B8] border-[#263548]", label: "Neutral" },
     critical: {
-      className: "bg-destructive/12 text-destructive border-destructive/30",
+      className: "bg-[#EF4444]/15 text-[#EF4444] border-[#EF4444]/25",
       label: "Critical",
     },
     high: {
-      className: "bg-accent/15 text-accent border-accent/30",
+      className:
+        "bg-[#F59E0B]/15 text-[#F59E0B] border-[#F59E0B]/25",
       label: "High",
     },
     medium: {
-      className: "bg-warning/10 text-warning border-warning/20",
+      className:
+        "bg-[#3B82F6]/15 text-[#3B82F6] border-[#3B82F6]/25",
       label: "Medium",
     },
     low: {
-      className: "bg-info/10 text-info border-info/20",
+      className:
+        "bg-[#06B6D4]/15 text-[#06B6D4] border-[#06B6D4]/25",
       label: "Low",
     },
     verified: {
-      className: "bg-success/10 text-success border-success/20",
+      className:
+        "bg-[#22C55E]/10 text-[#22C55E] border-[#22C55E]/20",
       label: "Verified",
     },
-    unverified: { className: "bg-muted text-muted-foreground border-border", label: "Unverified" },
+    unverified: { className: "bg-[#1A2332] text-[#94A3B8] border-[#263548]", label: "Unverified" },
   } as const;
   return { variant: "outline", ...map[tone] };
 }
