@@ -19,6 +19,8 @@
  */
 
 @theme inline {
+  --font-sans: "Inter", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -71,82 +73,87 @@
 }
 
 :root {
-  --radius: 0.5rem;
-  /* Light theme: sleek cyberpunk bright grid */
-  --background: oklch(0.98 0.01 310);
-  --foreground: oklch(0.12 0.05 310);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.12 0.05 310);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.12 0.05 310);
-  --primary: oklch(0.65 0.28 310); /* Hot Violet */
-  --primary-foreground: oklch(0.99 0.005 310);
-  --secondary: oklch(0.95 0.01 310);
-  --secondary-foreground: oklch(0.2 0.05 310);
-  --muted: oklch(0.95 0.01 310);
-  --muted-foreground: oklch(0.45 0.05 310);
-  --accent: oklch(0.72 0.22 55); /* Neon Amber */
-  --accent-foreground: oklch(0.12 0.05 310);
-  --destructive: oklch(0.55 0.22 25);
-  --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.9 0.02 310);
-  --input: oklch(0.9 0.02 310);
-  --ring: oklch(0.65 0.28 310);
-  --chart-1: oklch(0.65 0.28 310);
-  --chart-2: oklch(0.72 0.22 55);
-  --chart-3: oklch(0.55 0.22 25);
-  --chart-4: oklch(0.78 0.16 85);
-  --chart-5: oklch(0.62 0.23 27);
-  --success: oklch(0.72 0.22 55);
-  --success-foreground: oklch(0.12 0.05 310);
-  --warning: oklch(0.78 0.16 85);
-  --warning-foreground: oklch(0.2 0.05 60);
-  --info: oklch(0.65 0.28 310);
-  --info-foreground: oklch(0.99 0 0);
-  --sidebar: oklch(0.99 0.005 310);
-  --sidebar-foreground: oklch(0.2 0.05 310);
-  --sidebar-primary: oklch(0.65 0.28 310);
-  --sidebar-primary-foreground: oklch(0.99 0 0);
-  --sidebar-accent: oklch(0.95 0.01 310);
-  --sidebar-accent-foreground: oklch(0.2 0.05 310);
-  --sidebar-border: oklch(0.9 0.02 310);
-  --sidebar-ring: oklch(0.65 0.28 310);
+  --radius: 4px;
+  --background: #0D0E12;
+  --foreground: #ECFDF5;
+  --card: #13151A;
+  --card-foreground: #ECFDF5;
+  --popover: #13151A;
+  --popover-foreground: #ECFDF5;
+  --primary: #10B981;
+  --primary-foreground: #0D0E12;
+  --secondary: #181B22;
+  --secondary-foreground: #A7F3D0;
+  --muted: #181B22;
+  --muted-foreground: #6EE7B7;
+  --accent: #1A2B23;
+  --accent-foreground: #22C55E;
+  --destructive: #EF4444;
+  --destructive-foreground: #ECFDF5;
+  --border: #22332B;
+  --input: #181B22;
+  --ring: #10B981;
+  --chart-1: #10B981;
+  --chart-2: #22C55E;
+  --chart-3: #10B981;
+  --chart-4: #F59E0B;
+  --chart-5: #EF4444;
+  --success: #10B981;
+  --success-foreground: #ECFDF5;
+  --warning: #F59E0B;
+  --warning-foreground: #ECFDF5;
+  --info: #22C55E;
+  --info-foreground: #ECFDF5;
+  --sidebar: #0F1014;
+  --sidebar-foreground: #6EE7B7;
+  --sidebar-primary: #10B981;
+  --sidebar-primary-foreground: #0D0E12;
+  --sidebar-accent: #181B22;
+  --sidebar-accent-foreground: #ECFDF5;
+  --sidebar-border: #22332B;
+  --sidebar-ring: #10B981;
 }
 
 .dark {
-  /* Obsidian Cyberpunk Grid: deep space background, neon highlights */
-  --background: oklch(0.08 0.015 270);
-  --foreground: oklch(0.96 0.02 310);
-  --card: oklch(0.12 0.025 270);
-  --card-foreground: oklch(0.96 0.02 310);
-  --popover: oklch(0.12 0.025 270);
-  --popover-foreground: oklch(0.96 0.02 310);
-  --primary: oklch(0.65 0.28 310); /* Hot Violet */
-  --primary-foreground: oklch(0.98 0.01 270);
-  --secondary: oklch(0.16 0.035 270);
-  --secondary-foreground: oklch(0.96 0.02 310);
-  --muted: oklch(0.16 0.035 270);
-  --muted-foreground: oklch(0.65 0.04 290);
-  --accent: oklch(0.72 0.22 55); /* Neon Amber / Cyber Orange */
-  --accent-foreground: oklch(0.08 0.015 270);
-  --destructive: oklch(0.58 0.22 25);
-  --destructive-foreground: oklch(0.98 0.01 270);
-  --border: oklch(0.65 0.28 310 / 20%);
-  --input: oklch(0.65 0.28 310 / 25%);
-  --ring: oklch(0.65 0.28 310);
-  --chart-1: oklch(0.65 0.28 310);
-  --chart-2: oklch(0.72 0.22 55);
-  --chart-3: oklch(0.58 0.22 25);
-  --chart-4: oklch(0.78 0.16 85);
-  --chart-5: oklch(0.62 0.23 27);
-  --sidebar: oklch(0.1 0.02 270);
-  --sidebar-foreground: oklch(0.96 0.02 310);
-  --sidebar-primary: oklch(0.65 0.28 310);
-  --sidebar-primary-foreground: oklch(0.98 0.01 270);
-  --sidebar-accent: oklch(0.16 0.035 270);
-  --sidebar-accent-foreground: oklch(0.96 0.02 310);
-  --sidebar-border: oklch(0.65 0.28 310 / 15%);
-  --sidebar-ring: oklch(0.65 0.28 310);
+  --radius: 4px;
+  --background: #0D0E12;
+  --foreground: #ECFDF5;
+  --card: #13151A;
+  --card-foreground: #ECFDF5;
+  --popover: #13151A;
+  --popover-foreground: #ECFDF5;
+  --primary: #10B981;
+  --primary-foreground: #0D0E12;
+  --secondary: #181B22;
+  --secondary-foreground: #A7F3D0;
+  --muted: #181B22;
+  --muted-foreground: #6EE7B7;
+  --accent: #1A2B23;
+  --accent-foreground: #22C55E;
+  --destructive: #EF4444;
+  --destructive-foreground: #ECFDF5;
+  --border: #22332B;
+  --input: #181B22;
+  --ring: #10B981;
+  --chart-1: #10B981;
+  --chart-2: #22C55E;
+  --chart-3: #10B981;
+  --chart-4: #F59E0B;
+  --chart-5: #EF4444;
+  --success: #10B981;
+  --success-foreground: #ECFDF5;
+  --warning: #F59E0B;
+  --warning-foreground: #ECFDF5;
+  --info: #22C55E;
+  --info-foreground: #ECFDF5;
+  --sidebar: #0F1014;
+  --sidebar-foreground: #6EE7B7;
+  --sidebar-primary: #10B981;
+  --sidebar-primary-foreground: #0D0E12;
+  --sidebar-accent: #181B22;
+  --sidebar-accent-foreground: #ECFDF5;
+  --sidebar-border: #22332B;
+  --sidebar-ring: #10B981;
 }
 
 @layer base {
@@ -157,94 +164,53 @@
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
-    position: relative;
-    overflow-x: hidden;
-  }
-
-  /* Cyber Scanlines Overlay */
-  body::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    pointer-events: none;
-    background: linear-gradient(
-      rgba(18, 16, 16, 0) 50%,
-      rgba(0, 0, 0, 0.15) 50%
-    );
-    background-size: 100% 4px;
-    z-index: 999;
-    opacity: 0.4;
-  }
-
-  /* Tactical Grid Pattern */
-  .dark body {
-    background-image: 
-      radial-gradient(at 0% 0%, oklch(0.65 0.28 310 / 10%) 0px, transparent 50%),
-      radial-gradient(at 100% 100%, oklch(0.72 0.22 55 / 8%) 0px, transparent 50%),
-      linear-gradient(to right, oklch(0.65 0.28 310 / 2%) 1px, transparent 1px),
-      linear-gradient(to bottom, oklch(0.65 0.28 310 / 2%) 1px, transparent 1px);
-    background-size: 100% 100%, 100% 100%, 32px 32px, 32px 32px;
   }
 }
 
-/* ============================================================================
- * Cyberpunk Intelligence Utility Classes
- * ============================================================================
+/*
+ * Multi-language support. `--app-font-stack` is set by <I18nProvider> to a font
+ * stack that can render the active script; `.lang-indic` relaxes the tight
+ * Latin-tuned metrics so Bengali/Gurmukhi/Telugu/Gujarati glyphs aren't clipped.
  */
-
-.cyber-glow-primary {
-  text-shadow: 0 0 8px oklch(0.65 0.28 310 / 40%), 0 0 2px oklch(0.65 0.28 310);
+html.lang-indic body,
+html.lang-indic body .font-mono {
+  font-family: var(--app-font-stack), ui-sans-serif, system-ui, sans-serif;
 }
 
-.cyber-glow-accent {
-  text-shadow: 0 0 8px oklch(0.72 0.22 55 / 45%), 0 0 2px oklch(0.72 0.22 55);
+html.lang-indic body {
+  line-height: 1.65;
+  letter-spacing: normal;
 }
 
-.cyber-card {
-  background: oklch(0.12 0.025 270 / 70%) !important;
-  backdrop-filter: blur(12px);
-  border: 1px solid oklch(0.65 0.28 310 / 20%) !important;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), inset 0 1px 1px oklch(1 0 0 / 5%);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+html.lang-indic body [class*="tracking-"] {
+  letter-spacing: normal;
 }
 
-.dark .cyber-card:hover {
-  border-color: oklch(0.65 0.28 310 / 50%) !important;
-  box-shadow: 0 0 15px oklch(0.65 0.28 310 / 15%), 0 4px 30px rgba(0, 0, 0, 0.5);
+html.lang-indic body [class*="uppercase"] {
+  /* Indic scripts have no case; uppercasing is a no-op that only hurts spacing. */
+  text-transform: none;
 }
 
-.cyber-input {
-  background: oklch(0.08 0.015 270 / 80%) !important;
-  border: 1px solid oklch(0.65 0.28 310 / 25%) !important;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  transition: all 0.25s ease;
+/*
+ * Urdu and Kashmiri use Perso-Arabic, which reads right-to-left. Rather than
+ * flipping the whole layout (the dashboard's positioning utilities are physical,
+ * not logical, so `dir=rtl` on <html> would scramble it), each text box infers
+ * its own direction from its content. Perso-Arabic runs render RTL; Latin
+ * fragments, numbers and identifiers stay LTR inside the same line.
+ */
+html.lang-rtl body {
+  unicode-bidi: plaintext;
 }
 
-.cyber-input:focus {
-  border-color: oklch(0.72 0.22 55) !important;
-  box-shadow: 0 0 8px oklch(0.72 0.22 55 / 20%) !important;
+html.lang-rtl body :where(p, span, h1, h2, h3, h4, h5, h6, li, td, th, label, button, a, div) {
+  unicode-bidi: plaintext;
 }
 
-.cyber-badge-accent {
-  background: oklch(0.72 0.22 55 / 12%) !important;
-  color: oklch(0.72 0.22 55) !important;
-  border: 1px solid oklch(0.72 0.22 55 / 35%) !important;
+html.lang-rtl body :where(input, textarea)::placeholder {
+  unicode-bidi: plaintext;
 }
 
-.cyber-badge-primary {
-  background: oklch(0.65 0.28 310 / 12%) !important;
-  color: oklch(0.65 0.28 310) !important;
-  border: 1px solid oklch(0.65 0.28 310 / 35%) !important;
-}
-
-@keyframes pulse-glow {
-  0%, 100% { opacity: 0.4; }
-  50% { opacity: 1; filter: drop-shadow(0 0 3px currentColor); }
-}
-
-.cyber-pulse {
-  animation: pulse-glow 2s infinite ease-in-out;
+/* Nastaliq faces have tall ascenders/descenders and clip at Latin line heights. */
+html.lang-rtl body {
+  line-height: 2;
 }
