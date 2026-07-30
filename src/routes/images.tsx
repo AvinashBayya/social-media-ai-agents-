@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScanFace, MapPin, Camera, Tag, FileImage } from "lucide-react";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/images")({
   head: () => ({ meta: [{ title: "Image Intelligence — Sentinel AI" }] }),
@@ -139,12 +140,37 @@ function Page() {
                 </Row>
               </div>
 
-              <div className="mt-4">
+              <div className="mt-4 space-y-2">
                 <div className="mb-1 flex items-center justify-between text-xs">
                   <span className="text-muted-foreground">Deepfake probability</span>
                   <span className="font-semibold">8%</span>
                 </div>
                 <Progress value={8} className="h-1.5" />
+              </div>
+
+              <div className="mt-4 pt-3 border-t">
+                <Button 
+                  size="sm" 
+                  className="w-full bg-[#3B82F6] hover:bg-[#2563EB] text-white font-semibold text-xs flex items-center justify-center gap-2"
+                  onClick={async () => {
+                    toast.info("Running Gemini 2.0 Flash Multi-Modal Visual Analysis...");
+                    try {
+                      const { geminiAnalyzeImage } = await import("@/utils/gemini");
+                      const result = await geminiAnalyzeImage({
+                        data: {
+                          imageUrl: "Convoy near restricted military checkpoint",
+                          prompt: "Analyze visual evidence for military hardware, uniform badges, and OCR text."
+                        }
+                      });
+                      toast.success("Gemini Visual Reconnaissance Completed!");
+                      alert(`[GEMINI 2.0 FLASH VISUAL RECONNAISSANCE]\n\n${result}`);
+                    } catch (err: any) {
+                      toast.error("Visual analysis exception: " + err?.message);
+                    }
+                  }}
+                >
+                  <ScanFace className="size-4" /> Run Gemini Multi-Modal Visual Recon
+                </Button>
               </div>
             </div>
           </CardContent>

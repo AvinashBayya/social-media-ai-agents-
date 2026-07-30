@@ -10,7 +10,12 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AgentsRouteImport } from './routes/agents'
+import { Route as AlertsRouteImport } from './routes/alerts'
+import { Route as CrawlersRouteImport } from './routes/crawlers'
 import { Route as EntitiesRouteImport } from './routes/entities'
+import { Route as ExportsRouteImport } from './routes/exports'
+import { Route as GisRouteImport } from './routes/gis'
 import { Route as GraphRouteImport } from './routes/graph'
 import { Route as ImagesRouteImport } from './routes/images'
 import { Route as InvestigationsRouteImport } from './routes/investigations'
@@ -18,22 +23,53 @@ import { Route as LiveRouteImport } from './routes/live'
 import { Route as NetworkRouteImport } from './routes/network'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as OsintRouteImport } from './routes/osint'
+import { Route as ReportsRouteImport } from './routes/reports'
 import { Route as SentimentRouteImport } from './routes/sentiment'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as SocialRouteImport } from './routes/social'
+import { Route as SourcesRouteImport } from './routes/sources'
 import { Route as SubjectsRouteImport } from './routes/subjects'
+import { Route as TasksRouteImport } from './routes/tasks'
+import { Route as ThreatsRouteImport } from './routes/threats'
 import { Route as TimelineRouteImport } from './routes/timeline'
 import { Route as TrendsRouteImport } from './routes/trends'
+import { Route as VaultRouteImport } from './routes/vault'
 import { Route as VideosRouteImport } from './routes/videos'
+import { Route as WatchlistsRouteImport } from './routes/watchlists'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AgentsRoute = AgentsRouteImport.update({
+  id: '/agents',
+  path: '/agents',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AlertsRoute = AlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CrawlersRoute = CrawlersRouteImport.update({
+  id: '/crawlers',
+  path: '/crawlers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EntitiesRoute = EntitiesRouteImport.update({
   id: '/entities',
   path: '/entities',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExportsRoute = ExportsRouteImport.update({
+  id: '/exports',
+  path: '/exports',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GisRoute = GisRouteImport.update({
+  id: '/gis',
+  path: '/gis',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GraphRoute = GraphRouteImport.update({
@@ -71,6 +107,11 @@ const OsintRoute = OsintRouteImport.update({
   path: '/osint',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportsRoute = ReportsRouteImport.update({
+  id: '/reports',
+  path: '/reports',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SentimentRoute = SentimentRouteImport.update({
   id: '/sentiment',
   path: '/sentiment',
@@ -86,9 +127,24 @@ const SocialRoute = SocialRouteImport.update({
   path: '/social',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SourcesRoute = SourcesRouteImport.update({
+  id: '/sources',
+  path: '/sources',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SubjectsRoute = SubjectsRouteImport.update({
   id: '/subjects',
   path: '/subjects',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TasksRoute = TasksRouteImport.update({
+  id: '/tasks',
+  path: '/tasks',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ThreatsRoute = ThreatsRouteImport.update({
+  id: '/threats',
+  path: '/threats',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TimelineRoute = TimelineRouteImport.update({
@@ -101,15 +157,30 @@ const TrendsRoute = TrendsRouteImport.update({
   path: '/trends',
   getParentRoute: () => rootRouteImport,
 } as any)
+const VaultRoute = VaultRouteImport.update({
+  id: '/vault',
+  path: '/vault',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const VideosRoute = VideosRouteImport.update({
   id: '/videos',
   path: '/videos',
   getParentRoute: () => rootRouteImport,
 } as any)
+const WatchlistsRoute = WatchlistsRouteImport.update({
+  id: '/watchlists',
+  path: '/watchlists',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/agents': typeof AgentsRoute
+  '/alerts': typeof AlertsRoute
+  '/crawlers': typeof CrawlersRoute
   '/entities': typeof EntitiesRoute
+  '/exports': typeof ExportsRoute
+  '/gis': typeof GisRoute
   '/graph': typeof GraphRoute
   '/images': typeof ImagesRoute
   '/investigations': typeof InvestigationsRoute
@@ -117,17 +188,28 @@ export interface FileRoutesByFullPath {
   '/network': typeof NetworkRoute
   '/news': typeof NewsRoute
   '/osint': typeof OsintRoute
+  '/reports': typeof ReportsRoute
   '/sentiment': typeof SentimentRoute
   '/settings': typeof SettingsRoute
   '/social': typeof SocialRoute
+  '/sources': typeof SourcesRoute
   '/subjects': typeof SubjectsRoute
+  '/tasks': typeof TasksRoute
+  '/threats': typeof ThreatsRoute
   '/timeline': typeof TimelineRoute
   '/trends': typeof TrendsRoute
+  '/vault': typeof VaultRoute
   '/videos': typeof VideosRoute
+  '/watchlists': typeof WatchlistsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/agents': typeof AgentsRoute
+  '/alerts': typeof AlertsRoute
+  '/crawlers': typeof CrawlersRoute
   '/entities': typeof EntitiesRoute
+  '/exports': typeof ExportsRoute
+  '/gis': typeof GisRoute
   '/graph': typeof GraphRoute
   '/images': typeof ImagesRoute
   '/investigations': typeof InvestigationsRoute
@@ -135,18 +217,29 @@ export interface FileRoutesByTo {
   '/network': typeof NetworkRoute
   '/news': typeof NewsRoute
   '/osint': typeof OsintRoute
+  '/reports': typeof ReportsRoute
   '/sentiment': typeof SentimentRoute
   '/settings': typeof SettingsRoute
   '/social': typeof SocialRoute
+  '/sources': typeof SourcesRoute
   '/subjects': typeof SubjectsRoute
+  '/tasks': typeof TasksRoute
+  '/threats': typeof ThreatsRoute
   '/timeline': typeof TimelineRoute
   '/trends': typeof TrendsRoute
+  '/vault': typeof VaultRoute
   '/videos': typeof VideosRoute
+  '/watchlists': typeof WatchlistsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/agents': typeof AgentsRoute
+  '/alerts': typeof AlertsRoute
+  '/crawlers': typeof CrawlersRoute
   '/entities': typeof EntitiesRoute
+  '/exports': typeof ExportsRoute
+  '/gis': typeof GisRoute
   '/graph': typeof GraphRoute
   '/images': typeof ImagesRoute
   '/investigations': typeof InvestigationsRoute
@@ -154,19 +247,30 @@ export interface FileRoutesById {
   '/network': typeof NetworkRoute
   '/news': typeof NewsRoute
   '/osint': typeof OsintRoute
+  '/reports': typeof ReportsRoute
   '/sentiment': typeof SentimentRoute
   '/settings': typeof SettingsRoute
   '/social': typeof SocialRoute
+  '/sources': typeof SourcesRoute
   '/subjects': typeof SubjectsRoute
+  '/tasks': typeof TasksRoute
+  '/threats': typeof ThreatsRoute
   '/timeline': typeof TimelineRoute
   '/trends': typeof TrendsRoute
+  '/vault': typeof VaultRoute
   '/videos': typeof VideosRoute
+  '/watchlists': typeof WatchlistsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/agents'
+    | '/alerts'
+    | '/crawlers'
     | '/entities'
+    | '/exports'
+    | '/gis'
     | '/graph'
     | '/images'
     | '/investigations'
@@ -174,17 +278,28 @@ export interface FileRouteTypes {
     | '/network'
     | '/news'
     | '/osint'
+    | '/reports'
     | '/sentiment'
     | '/settings'
     | '/social'
+    | '/sources'
     | '/subjects'
+    | '/tasks'
+    | '/threats'
     | '/timeline'
     | '/trends'
+    | '/vault'
     | '/videos'
+    | '/watchlists'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/agents'
+    | '/alerts'
+    | '/crawlers'
     | '/entities'
+    | '/exports'
+    | '/gis'
     | '/graph'
     | '/images'
     | '/investigations'
@@ -192,17 +307,28 @@ export interface FileRouteTypes {
     | '/network'
     | '/news'
     | '/osint'
+    | '/reports'
     | '/sentiment'
     | '/settings'
     | '/social'
+    | '/sources'
     | '/subjects'
+    | '/tasks'
+    | '/threats'
     | '/timeline'
     | '/trends'
+    | '/vault'
     | '/videos'
+    | '/watchlists'
   id:
     | '__root__'
     | '/'
+    | '/agents'
+    | '/alerts'
+    | '/crawlers'
     | '/entities'
+    | '/exports'
+    | '/gis'
     | '/graph'
     | '/images'
     | '/investigations'
@@ -210,18 +336,29 @@ export interface FileRouteTypes {
     | '/network'
     | '/news'
     | '/osint'
+    | '/reports'
     | '/sentiment'
     | '/settings'
     | '/social'
+    | '/sources'
     | '/subjects'
+    | '/tasks'
+    | '/threats'
     | '/timeline'
     | '/trends'
+    | '/vault'
     | '/videos'
+    | '/watchlists'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AgentsRoute: typeof AgentsRoute
+  AlertsRoute: typeof AlertsRoute
+  CrawlersRoute: typeof CrawlersRoute
   EntitiesRoute: typeof EntitiesRoute
+  ExportsRoute: typeof ExportsRoute
+  GisRoute: typeof GisRoute
   GraphRoute: typeof GraphRoute
   ImagesRoute: typeof ImagesRoute
   InvestigationsRoute: typeof InvestigationsRoute
@@ -229,13 +366,19 @@ export interface RootRouteChildren {
   NetworkRoute: typeof NetworkRoute
   NewsRoute: typeof NewsRoute
   OsintRoute: typeof OsintRoute
+  ReportsRoute: typeof ReportsRoute
   SentimentRoute: typeof SentimentRoute
   SettingsRoute: typeof SettingsRoute
   SocialRoute: typeof SocialRoute
+  SourcesRoute: typeof SourcesRoute
   SubjectsRoute: typeof SubjectsRoute
+  TasksRoute: typeof TasksRoute
+  ThreatsRoute: typeof ThreatsRoute
   TimelineRoute: typeof TimelineRoute
   TrendsRoute: typeof TrendsRoute
+  VaultRoute: typeof VaultRoute
   VideosRoute: typeof VideosRoute
+  WatchlistsRoute: typeof WatchlistsRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -247,11 +390,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/agents': {
+      id: '/agents'
+      path: '/agents'
+      fullPath: '/agents'
+      preLoaderRoute: typeof AgentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/alerts': {
+      id: '/alerts'
+      path: '/alerts'
+      fullPath: '/alerts'
+      preLoaderRoute: typeof AlertsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/crawlers': {
+      id: '/crawlers'
+      path: '/crawlers'
+      fullPath: '/crawlers'
+      preLoaderRoute: typeof CrawlersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/entities': {
       id: '/entities'
       path: '/entities'
       fullPath: '/entities'
       preLoaderRoute: typeof EntitiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exports': {
+      id: '/exports'
+      path: '/exports'
+      fullPath: '/exports'
+      preLoaderRoute: typeof ExportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gis': {
+      id: '/gis'
+      path: '/gis'
+      fullPath: '/gis'
+      preLoaderRoute: typeof GisRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/graph': {
@@ -303,6 +481,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OsintRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/reports': {
+      id: '/reports'
+      path: '/reports'
+      fullPath: '/reports'
+      preLoaderRoute: typeof ReportsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sentiment': {
       id: '/sentiment'
       path: '/sentiment'
@@ -324,11 +509,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SocialRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/sources': {
+      id: '/sources'
+      path: '/sources'
+      fullPath: '/sources'
+      preLoaderRoute: typeof SourcesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/subjects': {
       id: '/subjects'
       path: '/subjects'
       fullPath: '/subjects'
       preLoaderRoute: typeof SubjectsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tasks': {
+      id: '/tasks'
+      path: '/tasks'
+      fullPath: '/tasks'
+      preLoaderRoute: typeof TasksRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/threats': {
+      id: '/threats'
+      path: '/threats'
+      fullPath: '/threats'
+      preLoaderRoute: typeof ThreatsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/timeline': {
@@ -345,6 +551,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TrendsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/vault': {
+      id: '/vault'
+      path: '/vault'
+      fullPath: '/vault'
+      preLoaderRoute: typeof VaultRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/videos': {
       id: '/videos'
       path: '/videos'
@@ -352,12 +565,24 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof VideosRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/watchlists': {
+      id: '/watchlists'
+      path: '/watchlists'
+      fullPath: '/watchlists'
+      preLoaderRoute: typeof WatchlistsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AgentsRoute: AgentsRoute,
+  AlertsRoute: AlertsRoute,
+  CrawlersRoute: CrawlersRoute,
   EntitiesRoute: EntitiesRoute,
+  ExportsRoute: ExportsRoute,
+  GisRoute: GisRoute,
   GraphRoute: GraphRoute,
   ImagesRoute: ImagesRoute,
   InvestigationsRoute: InvestigationsRoute,
@@ -365,13 +590,19 @@ const rootRouteChildren: RootRouteChildren = {
   NetworkRoute: NetworkRoute,
   NewsRoute: NewsRoute,
   OsintRoute: OsintRoute,
+  ReportsRoute: ReportsRoute,
   SentimentRoute: SentimentRoute,
   SettingsRoute: SettingsRoute,
   SocialRoute: SocialRoute,
+  SourcesRoute: SourcesRoute,
   SubjectsRoute: SubjectsRoute,
+  TasksRoute: TasksRoute,
+  ThreatsRoute: ThreatsRoute,
   TimelineRoute: TimelineRoute,
   TrendsRoute: TrendsRoute,
+  VaultRoute: VaultRoute,
   VideosRoute: VideosRoute,
+  WatchlistsRoute: WatchlistsRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,4 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { getActiveTarget, setActiveTarget } from "@/utils/active-target";
 import { AppShell, PageHeader, Tone } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -13,6 +15,30 @@ export const Route = createFileRoute("/entities")({
 });
 
 function Page() {
+  const [target, setTarget] = useState(() => getActiveTarget());
+  const [searchVal, setSearchVal] = useState(() => getActiveTarget());
+
+  useEffect(() => {
+    const initial = getActiveTarget();
+    setTarget(initial);
+    setSearchVal(initial);
+
+    const handleTargetChange = (e: any) => {
+      if (e.detail) {
+        setTarget(e.detail);
+        setSearchVal(e.detail);
+      }
+    };
+    window.addEventListener("sentinel_target_changed", handleTargetChange);
+    return () => window.removeEventListener("sentinel_target_changed", handleTargetChange);
+  }, []);
+
+  const handleSearch = () => {
+    if (searchVal.trim()) {
+      setActiveTarget(searchVal.trim());
+    }
+  };
+
   return (
     <AppShell>
       <PageHeader
@@ -24,8 +50,14 @@ function Page() {
         <CardContent className="p-4">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input defaultValue="Vector-17" className="h-11 pl-9 pr-24 text-base" />
-            <Button size="sm" className="absolute right-1.5 top-1/2 -translate-y-1/2">
+            <Input
+              value={searchVal}
+              onChange={(e) => setSearchVal(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              placeholder="Search target subject or entity..."
+              className="h-11 pl-9 pr-24 text-base"
+            />
+            <Button size="sm" onClick={handleSearch} className="absolute right-1.5 top-1/2 -translate-y-1/2">
               Search
             </Button>
           </div>
@@ -35,11 +67,11 @@ function Page() {
       <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
         <Card>
           <CardContent className="p-5 text-center">
-            <div className="mx-auto grid size-24 place-items-center rounded-full bg-gradient-to-br from-primary/30 to-primary/5 text-3xl font-bold text-primary">
-              V17
+            <div className="mx-auto grid size-24 place-items-center rounded-full bg-gradient-to-br from-primary/30 to-primary/5 text-2xl font-bold text-primary font-mono">
+              {target.slice(0, 3).toUpperCase()}
             </div>
-            <h2 className="mt-3 text-lg font-semibold">Vector-17</h2>
-            <p className="text-xs text-muted-foreground">Alias · Watchlist subject</p>
+            <h2 className="mt-3 text-lg font-semibold font-mono">{target}</h2>
+            <p className="text-xs text-muted-foreground">Active Intelligence Subject</p>
             <div className="mt-3 flex justify-center gap-1.5">
               <Tone tone="critical" />
               <Tone tone="unverified" />

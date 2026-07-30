@@ -65,6 +65,17 @@ interface APIStory {
   propagandaRisk?: string;
 }
 
+export function safeIsoDate(pubDate?: string | null): string {
+  if (!pubDate) return new Date().toISOString();
+  try {
+    const d = new Date(pubDate);
+    if (isNaN(d.getTime())) return new Date().toISOString();
+    return d.toISOString();
+  } catch {
+    return new Date().toISOString();
+  }
+}
+
 export const fetchNews = createServerFn({ method: "GET" })
   .validator((data: { q?: string; query?: string } | undefined) => data)
   .handler(async ({ data }) => {
@@ -180,7 +191,7 @@ export const fetchNews = createServerFn({ method: "GET" })
               primaryLink: item.link,
               url: item.link,
               sourceUrl: item.link,
-              pubDate: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+              pubDate: safeIsoDate(item.pubDate),
               sourceCount,
               importanceScore,
               velocity: {
@@ -386,11 +397,12 @@ export const fetchOSINT = createServerFn({ method: "GET" })
         whois: { Domain: "N/A", Registrar: "N/A", Created: "N/A", Expires: "N/A", NS: "N/A" },
         dns: { a: "No records found", mx: "No records found" },
         github: [],
-        corporate: { status: "Inactive", jurisdiction: "N/A", fileNo: "N/A", hq: "N/A" }
+        corporate: { status: "Inactive", jurisdiction: "N/A", fileNo: "N/A", hq: "N/A" },
+        certificates: []
       };
     }
 
-    const extractDomainCandidate = (query: string): string => {
+    const extractDomainCandidate = (query: string): string | null => {
       let cleaned = query.trim().toLowerCase();
       if (cleaned.includes("@")) {
         const parts = cleaned.split("@");
@@ -401,65 +413,214 @@ export const fetchOSINT = createServerFn({ method: "GET" })
       if (slashIndex !== -1) {
         cleaned = cleaned.substring(0, slashIndex);
       }
+      // Strictly match valid domain format: must contain at least one dot and only valid domain chars
       const domainPattern = /^[a-z0-9-]+(\.[a-z0-9-]+)+$/;
       if (domainPattern.test(cleaned)) {
         return cleaned;
       }
-      return cleaned.replace(/[^a-z0-9]/g, "") + ".com";
+      return null;
     };
 
     const domainCandidate = extractDomainCandidate(q);
 
-    // 1. DNS Resolution (Server-Side using DoH to bypass port 53 blocks)
-    let ipAddress = "Resolution failed";
-    let mxRecord = "No MX record found";
-    try {
-      const aUrl = `https://cloudflare-dns.com/dns-query?name=${domainCandidate}&type=A`;
-      const aRes = await fetch(aUrl, { headers: { "accept": "application/dns-json" } });
-      if (aRes.ok) {
-        const aJson = await aRes.json();
-        if (aJson.Answer && aJson.Answer.length > 0) {
-          ipAddress = aJson.Answer[0].data;
+    let ipAddress = "N/A";
+    let mxRecord = "N/A";
+    let isRegistered = false;
+
+    let whoisData = {
+      Domain: q,
+      Registrar: "N/A (Not a domain target)",
+      Created: "N/A",
+      Expires: "N/A",
+      NS: "N/A"
+    };
+
+    let certLogs: any[] = [];
+
+    if (domainCandidate) {
+      ipAddress = "Resolution failed";
+      mxRecord = "No MX record found";
+      whoisData = {
+        Domain: domainCandidate,
+        Registrar: "Querying registry...",
+        Created: "Unknown",
+        Expires: "Unknown",
+        NS: "None"
+      };
+
+      // 1. DNS Resolution (Server-Side using DoH to bypass port 53 blocks)
+      try {
+        const aUrl = `https://cloudflare-dns.com/dns-query?name=${domainCandidate}&type=A`;
+        const aRes = await fetch(aUrl, { headers: { "accept": "application/dns-json" }, signal: AbortSignal.timeout(8000) });
+        if (aRes.ok) {
+          const aJson = await aRes.json();
+          if (aJson.Status === 0 && aJson.Answer && aJson.Answer.length > 0) {
+            ipAddress = aJson.Answer[0].data;
+            isRegistered = true;
+          } else if (aJson.Status === 3) {
+            ipAddress = "Resolution failed (NXDOMAIN)";
+            whoisData.Registrar = "Domain not registered (NXDOMAIN)";
+          }
+        }
+      } catch (e) {
+        console.error("DoH A lookup failed for:", domainCandidate, e);
+      }
+
+      try {
+        const mxUrl = `https://cloudflare-dns.com/dns-query?name=${domainCandidate}&type=MX`;
+        const mxRes = await fetch(mxUrl, { headers: { "accept": "application/dns-json" }, signal: AbortSignal.timeout(8000) });
+        if (mxRes.ok) {
+          const mxJson = await mxRes.json();
+          if (mxJson.Status === 0 && mxJson.Answer && mxJson.Answer.length > 0) {
+            mxRecord = mxJson.Answer[0].data.replace(/\.$/, "");
+            isRegistered = true;
+          }
+        }
+      } catch (e) {
+        console.error("DoH MX lookup failed for:", domainCandidate, e);
+      }
+
+      // 4. RDAP WHOIS Domain Details (Only if DNS didn't strictly say NXDOMAIN)
+      if (whoisData.Registrar !== "Domain not registered (NXDOMAIN)") {
+        try {
+          const rdapResponse = await fetch(`https://rdap.org/domain/${domainCandidate}`, { signal: AbortSignal.timeout(8000) });
+          if (rdapResponse.ok) {
+            const rdapJson = await rdapResponse.json();
+            const registrarEntity = rdapJson.entities?.find((e: any) => e.roles?.includes("registrar"));
+            const createdEvent = rdapJson.events?.find((e: any) => e.eventAction === "registration");
+            const expirationEvent = rdapJson.events?.find((e: any) => e.eventAction === "expiration");
+            const nameservers = rdapJson.nameservers?.map((ns: any) => ns.ldhName.toLowerCase()).join(", ");
+            
+            whoisData = {
+              Domain: domainCandidate,
+              Registrar: registrarEntity?.vcardArray?.[1]?.find((arr: any) => arr[0] === "fn")?.[3] || registrarEntity?.handle || "Registered",
+              Created: createdEvent ? new Date(createdEvent.eventDate).toISOString().substring(0, 10) : "N/A",
+              Expires: expirationEvent ? new Date(expirationEvent.eventDate).toISOString().substring(0, 10) : "N/A",
+              NS: nameservers || "None listed"
+            };
+            isRegistered = true;
+          } else if (rdapResponse.status === 404) {
+            whoisData.Registrar = "Domain not registered (RDAP 404)";
+          } else {
+            whoisData.Registrar = "Registry lookup failed";
+          }
+        } catch (err) {
+          console.error("RDAP WHOIS failed:", err);
+          whoisData.Registrar = isRegistered ? "Private registration / WHOIS hidden" : "Domain not found / Inactive";
         }
       }
-    } catch (e) {
-      console.error("DoH A lookup failed for:", domainCandidate, e);
-    }
 
-    try {
-      const mxUrl = `https://cloudflare-dns.com/dns-query?name=${domainCandidate}&type=MX`;
-      const mxRes = await fetch(mxUrl, { headers: { "accept": "application/dns-json" } });
-      if (mxRes.ok) {
-        const mxJson = await mxRes.json();
-        if (mxJson.Answer && mxJson.Answer.length > 0) {
-          mxRecord = mxJson.Answer[0].data.replace(/\.$/, "");
+      // 5. Certificate Transparency Logs (crt.sh)
+      try {
+        const crtRes = await fetch(`https://crt.sh/?q=%.${encodeURIComponent(domainCandidate)}&output=json`, {
+          signal: AbortSignal.timeout(8000)
+        });
+        if (crtRes.ok) {
+          const crtData = await crtRes.json();
+          if (Array.isArray(crtData)) {
+            const uniqueDomains = new Set<string>();
+            for (const item of crtData.slice(0, 30)) {
+              const name = item.name_value?.toLowerCase() || item.common_name?.toLowerCase();
+              if (name && !uniqueDomains.has(name)) {
+                uniqueDomains.add(name);
+                certLogs.push({
+                  subdomain: name,
+                  issuer: item.issuer_name ? item.issuer_name.split("O=")[1]?.split(",")[0] || "Let's Encrypt" : "DigiCert",
+                  loggedAt: item.entry_timestamp ? item.entry_timestamp.substring(0, 10) : new Date().toISOString().substring(0, 10)
+                });
+              }
+            }
+          }
         }
+      } catch (err) {
+        console.error("crt.sh fetch failed:", err);
       }
-    } catch (e) {
-      console.error("DoH MX lookup failed for:", domainCandidate, e);
     }
 
-    // 2. GitHub Search
+    // 2. GitHub Search - Retrieve actual user repositories and matching repositories
     let repos: any[] = [];
+    const uniqueRepoUrls = new Set<string>();
+
+    const addUniqueRepos = (repoList: any[]) => {
+      for (const item of repoList) {
+        if (item.html_url && !uniqueRepoUrls.has(item.html_url)) {
+          uniqueRepoUrls.add(item.html_url);
+          repos.push({
+            name: item.full_name || item.name,
+            url: item.html_url
+          });
+        }
+      }
+    };
+
     try {
+      // Step A: Search repositories by name/query
       const gitResponse = await fetch(
         `https://api.github.com/search/repositories?q=${encodeURIComponent(q)}&sort=stars&order=desc`,
         {
           headers: {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-          }
+          },
+          signal: AbortSignal.timeout(8000)
         }
       );
       if (gitResponse.ok) {
         const gitData = await gitResponse.json();
-        repos = (gitData.items || []).slice(0, 2).map((item: any) => ({
-          name: item.full_name,
-          url: item.html_url
-        }));
+        addUniqueRepos(gitData.items || []);
       }
     } catch (err) {
-      console.error("GitHub search failed:", err);
+      console.error("GitHub repository search failed:", err);
     }
+
+    // Step B: Search GitHub users to find profiles matching the name
+    try {
+      const userVariations = [
+        q,
+        q.replace(/\s+/g, ""),
+        q.split(/\s+/).reverse().join("")
+      ].filter(v => v && v.length > 2);
+
+      let foundUserLogins: string[] = [];
+      for (const variant of userVariations.slice(0, 2)) {
+        const userResponse = await fetch(
+          `https://api.github.com/search/users?q=${encodeURIComponent(variant)}`,
+          {
+            headers: { "User-Agent": "Mozilla/5.0" },
+            signal: AbortSignal.timeout(8000)
+          }
+        );
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          const items = userData.items || [];
+          for (const u of items.slice(0, 2)) {
+            if (u.login && !foundUserLogins.includes(u.login)) {
+              foundUserLogins.push(u.login);
+            }
+          }
+        }
+      }
+
+      // Step C: Fetch repositories of the found users and combine
+      for (const username of foundUserLogins) {
+        const userReposResponse = await fetch(
+          `https://api.github.com/users/${username}/repos?sort=updated&per_page=5`,
+          {
+            headers: { "User-Agent": "Mozilla/5.0" },
+            signal: AbortSignal.timeout(8000)
+          }
+        );
+        if (userReposResponse.ok) {
+          const userReposData = await userReposResponse.json();
+          if (Array.isArray(userReposData)) {
+            addUniqueRepos(userReposData);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("GitHub user repository matching failed:", err);
+    }
+
+    repos = repos.slice(0, 6);
 
     // 3. Corporate Registry Search via Wikidata (Keyless and Open)
     let corporateData = { status: "Not found", jurisdiction: "Not found", fileNo: "Not found", hq: "Not found" };
@@ -514,29 +675,6 @@ export const fetchOSINT = createServerFn({ method: "GET" })
       console.error("Wikidata search failed:", err);
     }
 
-    // 4. RDAP WHOIS Domain Details
-    let whoisData = { Domain: domainCandidate, Registrar: "Not found", Created: "Not found", Expires: "Not found", NS: "Not found" };
-    try {
-      const rdapResponse = await fetch(`https://rdap.org/domain/${domainCandidate}`);
-      if (rdapResponse.ok) {
-        const rdapJson = await rdapResponse.json();
-        const registrarEntity = rdapJson.entities?.find((e: any) => e.roles?.includes("registrar"));
-        const createdEvent = rdapJson.events?.find((e: any) => e.eventAction === "registration");
-        const expirationEvent = rdapJson.events?.find((e: any) => e.eventAction === "expiration");
-        const nameservers = rdapJson.nameservers?.map((ns: any) => ns.ldhName.toLowerCase()).join(", ");
-        
-        whoisData = {
-          Domain: domainCandidate,
-          Registrar: registrarEntity?.vcardArray?.[1]?.find((arr: any) => arr[0] === "fn")?.[3] || registrarEntity?.handle || "Not found",
-          Created: createdEvent ? new Date(createdEvent.eventDate).toISOString().substring(0, 10) : "Not found",
-          Expires: expirationEvent ? new Date(expirationEvent.eventDate).toISOString().substring(0, 10) : "Not found",
-          NS: nameservers || "Not found"
-        };
-      }
-    } catch (err) {
-      console.error("RDAP WHOIS failed:", err);
-    }
-
     return {
       whois: whoisData,
       dns: {
@@ -544,7 +682,8 @@ export const fetchOSINT = createServerFn({ method: "GET" })
         mx: mxRecord
       },
       github: repos,
-      corporate: corporateData
+      corporate: corporateData,
+      certificates: certLogs
     };
   });
 
@@ -829,7 +968,7 @@ export const fetchSocialIntelligence = createServerFn({ method: "GET" })
               author: h.author || "hn_user",
               platform: "Hacker News",
               text: h.title,
-              pubDate: h.created_at ? new Date(h.created_at).toISOString() : new Date().toISOString(),
+              pubDate: safeIsoDate(h.created_at),
               likes: h.points || 0,
               shares: h.num_comments || 0,
               tone,
@@ -882,7 +1021,7 @@ export const fetchSocialIntelligence = createServerFn({ method: "GET" })
             author: isReddit ? `@r_${q.toLowerCase().replace(/[^a-z0-9]/g, "")}_user` : `@medium_writer`,
             platform: isReddit ? "Reddit" : "Medium",
             text: title,
-            pubDate: item.pubDate ? new Date(item.pubDate).toISOString() : new Date().toISOString(),
+            pubDate: safeIsoDate(item.pubDate),
             likes,
             shares,
             tone,
@@ -1082,7 +1221,7 @@ export const fetchMediaIntelligence = createServerFn({ method: "GET" })
         if (dashIndex !== -1) {
           title = title.substring(0, dashIndex).trim();
         }
-        const isPdf = title.toLowerCase().includes("pdf") || item.link.toLowerCase().includes(".pdf");
+        const isPdf = title.toLowerCase().includes("pdf") || (item.link || "").toLowerCase().includes(".pdf");
         documents.push({
           title,
           url: item.link,

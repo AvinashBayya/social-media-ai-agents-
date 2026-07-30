@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { getActiveTarget, setActiveTarget } from "@/utils/active-target";
 import { AppShell, PageHeader, StatusDot, Tone } from "@/components/app-shell";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useState, useEffect } from "react";
 import { createServerFn } from "@tanstack/react-start";
 import {
   Search, Filter, Languages, Bookmark, Expand, MapPin, ExternalLink, RefreshCw
@@ -174,10 +175,26 @@ function formatRelativeTime(dateStr: string): string {
 }
 
 function Page() {
-  const [searchVal, setSearchVal] = useState("ISRO Chandrayaan");
-  const [activeQuery, setActiveQuery] = useState("ISRO Chandrayaan");
+  const [searchVal, setSearchVal] = useState(() => getActiveTarget());
+  const [activeQuery, setActiveQuery] = useState(() => getActiveTarget());
   const [isLoading, setIsLoading] = useState(false);
   const [buffer, setBuffer] = useState<any[]>([]);
+
+  // Sync Live Monitoring state with global search bar target
+  useEffect(() => {
+    const initial = getActiveTarget();
+    setSearchVal(initial);
+    setActiveQuery(initial);
+
+    const handleTargetChange = (e: any) => {
+      if (e.detail) {
+        setSearchVal(e.detail);
+        setActiveQuery(e.detail);
+      }
+    };
+    window.addEventListener("sentinel_target_changed", handleTargetChange);
+    return () => window.removeEventListener("sentinel_target_changed", handleTargetChange);
+  }, []);
   const [visibleStreams, setVisibleStreams] = useState<any[]>([]);
   const [bufferIndex, setBufferIndex] = useState(0);
   const [activeFilter, setActiveFilter] = useState<string | null>(null);
