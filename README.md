@@ -30,4 +30,3 @@ npm run dev
 - Tailwind CSS
 =======
 # social-media-ai-agents-
->>>>>>> b39795b4dfc74569d698c0503760e51a9065fbc8
